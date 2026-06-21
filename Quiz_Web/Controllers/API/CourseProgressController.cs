@@ -65,16 +65,17 @@ namespace Quiz_Web.Controllers.API
 						completionPercentage = 0.0,
 						completedContents = 0,
 						totalContents = 0,
-						completedLessons = new List<int>()
+						completedLessons = new List<int>(),
+						completedContentIds = new List<int>()
 					});
 				}
 
-				// ? Get completed ContentIds for this user (ch? l?y ContentId ?„ complete)
+				// ? Get completed ContentIds for this user (ch? l?y ContentId ?ƒÉ complete)
 				var completedContentIds = await _context.CourseProgresses
 					.Where(p => p.CourseId == course.CourseId && 
 					           p.UserId == userId && 
 					           p.IsCompleted && 
-					           allCourseContentIds.Contains(p.ContentId)) // ? Ch? l?y ContentId thu?c course n‡y
+					           allCourseContentIds.Contains(p.ContentId)) // ? Ch? l?y ContentId thu?c course n√†y
 					.Select(p => p.ContentId)
 					.Distinct()
 					.ToListAsync();
@@ -91,7 +92,7 @@ namespace Quiz_Web.Controllers.API
 					.Distinct()
 					.ToListAsync();
 
-				// ? Calculate completion percentage (??m b?o khÙng v??t qu· 100%)
+				// ? Calculate completion percentage (??m b?o kh√¥ng v??t qu√° 100%)
 				var completionPercentage = (double)completedContentsCount / totalContents * 100;
 				completionPercentage = Math.Min(completionPercentage, 100); // Cap at 100%
 
@@ -101,7 +102,8 @@ namespace Quiz_Web.Controllers.API
 					completionPercentage = Math.Round(completionPercentage, 2),
 					completedContents = completedContentsCount,
 					totalContents = totalContents,
-					completedLessons = completedLessons
+					completedLessons = completedLessons,
+					completedContentIds = completedContentIds
 				});
 			}
 			catch (Exception ex)
