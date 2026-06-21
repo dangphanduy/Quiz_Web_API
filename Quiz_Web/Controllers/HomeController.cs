@@ -129,7 +129,7 @@ namespace Quiz_Web.Controllers
         }
 
         [Authorize]
-        [Route("/checkout")]
+        [Route("/home-checkout")]
         public async Task<IActionResult> Checkout()
         {
             try
@@ -137,12 +137,6 @@ namespace Quiz_Web.Controllers
                 var userId = GetCurrentUserId();
                 var cartItems = await _cartService.GetCartItemsAsync(userId);
                 
-                if (!cartItems.Any())
-                {
-                    TempData["Message"] = "Giỏ hàng của bạn đang trống";
-                    return RedirectToAction("Index", "Home");
-                }
-
                 var viewModel = new CheckoutViewModel
                 {
                     CartItems = cartItems.Select(ci => new CartItemViewModel

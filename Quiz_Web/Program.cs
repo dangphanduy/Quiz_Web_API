@@ -161,7 +161,7 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "checkout",
     pattern: "checkout",
-    defaults: new { controller = "Home", action = "Checkout" });
+    defaults: new { controller = "Checkout", action = "Index" });
 
 // Add route for Checkout controller
 app.MapControllerRoute(
