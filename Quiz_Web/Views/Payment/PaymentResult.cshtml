@@ -1,53 +1,49 @@
 @{
     ViewData["Title"] = "Kết quả thanh toán";
     Layout = "_Layout";
+    var isSubscription = ViewBag.PaymentPurpose == Quiz_Web.Models.Entities.PaymentPurposes.Subscription;
 }
 
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-body text-center">
+            <div class="card shadow-sm">
+                <div class="card-body text-center p-5">
                     @if (ViewBag.Success == true)
                     {
-                        <div class="text-success mb-3">
-                            <i class="fas fa-check-circle fa-4x"></i>
-                        </div>
+                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
                         <h3 class="text-success">Thanh toán thành công!</h3>
                         <div class="alert alert-success mt-3">
-                            <h5><i class="fas fa-gift me-2"></i>Chúc mừng!</h5>
-                            <p class="mb-0">Bạn đã mua thành công khóa học. Giờ đây bạn có thể truy cập vào tất cả nội dung của khóa học.</p>
+                            @if (isSubscription)
+                            {
+                                <p class="mb-0">Gói thuê bao đã được kích hoạt hoặc gia hạn. Bạn có thể xem toàn bộ khóa học trong thời hạn gói.</p>
+                            }
+                            else
+                            {
+                                <p class="mb-0">Bạn đã mua khóa học thành công và có quyền truy cập vĩnh viễn.</p>
+                            }
                         </div>
                     }
                     else
                     {
-                        <div class="text-danger mb-3">
-                            <i class="fas fa-times-circle fa-4x"></i>
-                        </div>
-                        <h3 class="text-danger">Thanh toán thất bại!</h3>
+                        <i class="fas fa-times-circle fa-4x text-danger mb-3"></i>
+                        <h3 class="text-danger">Thanh toán thất bại</h3>
                         <div class="alert alert-danger mt-3">
-                            <p class="mb-0">Đừng lo lắng, các khóa học vẫn còn trong giỏ hàng của bạn. Bạn có thể thử lại sau.</p>
+                            Giao dịch chưa hoàn tất. Bạn có thể thử lại sau.
                         </div>
                     }
-                    
+
                     <p class="mt-3 fs-5">@ViewBag.Message</p>
-                    
                     <div class="mt-4">
-                        @if (ViewBag.Success == true)
+                        @if (isSubscription)
                         {
-                            <a href="@Url.Action("Library", "Library")" class="btn btn-primary btn-lg me-2">
-                                <i class="fas fa-book"></i> Khóa học của tôi
-                            </a>
-                            <a href="@Url.Action("Index", "Home")" class="btn btn-outline-primary">
-                                <i class="fas fa-home"></i> Về trang chủ
-                            </a>
+                            <a asp-controller="Subscription" asp-action="Pricing" class="btn btn-primary me-2">Xem gói thuê bao</a>
                         }
-                        else
+                        else if (ViewBag.Success == true)
                         {
-                            <a href="@Url.Action("Index", "Home")" class="btn btn-primary btn-lg">
-                                <i class="fas fa-home"></i> Về trang chủ
-                            </a>
+                            <a asp-controller="Library" asp-action="Library" class="btn btn-primary me-2">Khóa học của tôi</a>
                         }
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-primary">Về trang chủ</a>
                     </div>
                 </div>
             </div>

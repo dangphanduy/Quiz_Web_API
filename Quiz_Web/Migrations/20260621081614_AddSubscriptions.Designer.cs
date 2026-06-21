@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Quiz_Web.Models.EF;
 
@@ -11,9 +12,11 @@ using Quiz_Web.Models.EF;
 namespace Quiz_Web.Migrations
 {
     [DbContext(typeof(LearningPlatformContext))]
-    partial class LearningPlatformContextModelSnapshot : ModelSnapshot
+    [Migration("20260621081614_AddSubscriptions")]
+    partial class AddSubscriptions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1415,14 +1418,12 @@ namespace Quiz_Web.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("PlanId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("DurationInMonths")
-                        .HasColumnType("int")
-                        .HasColumnName("DurationMonths");
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -1766,21 +1767,21 @@ namespace Quiz_Web.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("SubscriptionId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("ExpiresAt");
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<int>("PlanId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("SubscribedAt");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1795,7 +1796,7 @@ namespace Quiz_Web.Migrations
 
                     b.HasIndex("PlanId");
 
-                    b.HasIndex("UserId", "Status", "EndDate")
+                    b.HasIndex("UserId", "IsActive", "Status", "EndDate")
                         .HasDatabaseName("IX_UserSubscriptions_AccessCheck");
 
                     b.ToTable("UserSubscriptions", (string)null);
