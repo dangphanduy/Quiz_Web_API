@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Services;
 using Quiz_Web.Services.IServices;
 using Ganss.Xss;
-using Quiz_Web.Models.MoMoPayment;
+using Quiz_Web.Models.PayOSPayment;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,11 +76,24 @@ builder.Services.AddDbContext<LearningPlatformContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")),
     ServiceLifetime.Scoped);
 
-// Configure MoMo settings
-builder.Services.Configure<MoMoSettings>(builder.Configuration.GetSection("MoMoSettings"));
+// Configure PayOS settings
+builder.Services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOSSettings"));
 
-// Register HttpClient for MoMoPaymentService
-builder.Services.AddHttpClient<IMoMoPaymentService, MoMoPaymentService>();
+// Register PayOS Client as Singleton
+builder.Services.AddSingleton(sp =>
+{
+    var settings = builder.Configuration.GetSection("PayOSSettings").Get<PayOSSettings>()
+                   ?? throw new InvalidOperationException("PayOSSettings is missing from configuration.");
+    return new PayOS.PayOSClient(new PayOS.PayOSOptions
+    {
+        ClientId = settings.ClientId,
+        ApiKey = settings.ApiKey,
+        ChecksumKey = settings.ChecksumKey
+    });
+});
+
+// Register IPayOSService
+builder.Services.AddScoped<IPayOSService, PayOSService>();
 
 builder.Services.AddHttpClient<Quiz_Web.Services.IServices.ITokenService, Quiz_Web.Services.TokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
