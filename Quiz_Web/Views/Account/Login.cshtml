@@ -1,7 +1,17 @@
-﻿@{
+@{
 	Layout = "_LayoutAccount";
 	ViewData["Title"] = "Login";
 }
+<style>
+	.social-login-btn {
+		transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+		display: inline-block;
+	}
+	.social-login-btn:hover {
+		transform: scale(1.12);
+		opacity: 0.9;
+	}
+</style>
 <section class="container" id="login">
 	<div class="auth-wrapper px-5 mt-5">
 		<div class="auth-image" style="background-image: url('/asset/image/Login.svg');">
@@ -43,6 +53,19 @@
 						<a href="@Url.Action("ForgotPassword", "Account")" class="text-decoraiton-none small text-primary">Forgot password?</a>
 					</div>
 					<button type="submit" class="btn btn-primary btn-auth">Đăng nhập</button>
+
+					<div class="text-center my-3 text-muted">
+						<small>— Hoặc đăng nhập bằng —</small>
+					</div>
+
+					<div class="d-flex justify-content-center gap-3 mb-2">
+						<a href="javascript:void(0);" class="social-login-btn" id="btnGoogleLogin">
+							<img src="/asset/image/icons/iconLogin/ggicon.png" alt="Google" style="width: 42px; height: 42px;" />
+						</a>
+						<a href="javascript:void(0);" class="social-login-btn" id="btnFacebookLogin">
+							<img src="/asset/image/icons/iconLogin/fbIcon.png" alt="Facebook" style="width: 42px; height: 42px;" />
+						</a>
+					</div>
 
 					@if (ViewBag.Error != null)
 					{

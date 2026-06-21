@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+ï»¿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Services;
@@ -24,12 +24,47 @@ builder.Services.AddSession(options=>
     options.Cookie.Name = "Quiz";
 });
 
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = "JWT_OR_COOKIE";
+    options.DefaultChallengeScheme = "JWT_OR_COOKIE";
+})
+.AddPolicyScheme("JWT_OR_COOKIE", "JWT_OR_COOKIE", options =>
+{
+    options.ForwardDefaultSelector = context =>
     {
-        options.ExpireTimeSpan = TimeSpan.FromHours(3);
-        options.LoginPath = "/login";
-    });
+        string authorization = context.Request.Headers.Authorization;
+        if (!string.IsNullOrEmpty(authorization) && authorization.ToString().StartsWith("Bearer "))
+        {
+            return Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+        }
+        return Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+    };
+})
+.AddCookie(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme, options =>
+{
+    options.ExpireTimeSpan = TimeSpan.FromHours(3);
+    options.LoginPath = "/login";
+})
+.AddJwtBearer(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    var jwtSettings = builder.Configuration.GetSection("Jwt");
+    var key = System.Text.Encoding.UTF8.GetBytes(jwtSettings["Key"] ?? "SuperSecretKeyForQuizWebAPI2026SecureEncryptionWithAtLeast256Bits");
+
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -47,6 +82,7 @@ builder.Services.Configure<MoMoSettings>(builder.Configuration.GetSection("MoMoS
 // Register HttpClient for MoMoPaymentService
 builder.Services.AddHttpClient<IMoMoPaymentService, MoMoPaymentService>();
 
+builder.Services.AddHttpClient<Quiz_Web.Services.IServices.ITokenService, Quiz_Web.Services.TokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
 builder.Services.AddScoped<ITestService, TestService>();
@@ -110,7 +146,7 @@ app.MapControllerRoute(
     pattern: "Checkout/{action=Index}/{id?}",
     defaults: new { controller = "Checkout" });
 
-// Route m?c ??nh tr? ??n Welcome action ?? x? lý logic
+// Route m?c ??nh tr? ??n Welcome action ?? x? lï¿½ logic
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Welcome}/{id?}")
