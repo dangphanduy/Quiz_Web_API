@@ -44,15 +44,9 @@
 
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <form asp-controller="Payment"
-                                  asp-action="CreateSubscriptionMoMoPayment"
-                                  method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="planId" value="@plan.Id" />
-                                <button type="submit" class="btn btn-primary w-100">
-                                    @(Model.CurrentSubscription is null ? "Đăng ký ngay" : "Gia hạn ngay")
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-primary w-100 btn-subscription-payos" data-plan-id="@plan.Id">
+                                @(Model.CurrentSubscription is null ? "Đăng ký ngay" : "Gia hạn ngay")
+                            </button>
                         }
                         else
                         {
@@ -67,3 +61,7 @@
         }
     </div>
 </section>
+
+@section Scripts {
+    <script src="~/js/payment.js" asp-append-version="true"></script>
+}
