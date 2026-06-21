@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Helper;
@@ -5,6 +7,8 @@ using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Services.IServices;
 using System;
+using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Quiz_Web.Controllers.API
@@ -46,6 +50,17 @@ namespace Quiz_Web.Controllers.API
             // Update last login
             user.LastLoginAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            // Sign in Cookie for hybrid MVC support
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new Claim(ClaimTypes.Role, user.Role?.Name ?? "User")
+            };
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
 
             return Ok(new
             {
@@ -135,10 +150,33 @@ namespace Quiz_Web.Controllers.API
 
             var localToken = _tokenService.GenerateJwtToken(user);
 
+            // Sign in Cookie for hybrid MVC support
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new Claim(ClaimTypes.Role, user.Role?.Name ?? "User")
+            };
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
+
+            // Set redirect URL based on role
+            string redirectUrl = user.RoleId == 1 ? "/admin" : "/";
+
+            // If onboarding is required, redirect there
+            var hasProfile = _userService.HasUserProfile(user.UserId);
+            var hasInterests = _userService.HasUserInterests(user.UserId);
+            if (user.RoleId != 1 && (!hasProfile || !hasInterests))
+            {
+                redirectUrl = "/Onboarding";
+            }
+
             return Ok(new
             {
                 success = true,
                 token = localToken,
+                redirectUrl,
                 user = new
                 {
                     user.UserId,
