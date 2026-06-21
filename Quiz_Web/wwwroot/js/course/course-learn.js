@@ -1,4 +1,4 @@
-﻿// ============================================
+// ============================================
 // COURSE LEARN PAGE - JAVASCRIPT
 // ============================================
 
@@ -51,6 +51,11 @@ function setupTheoryTracking() {
     const theoryItems = document.querySelectorAll('.theory-item');
     
     theoryItems.forEach(item => {
+        // If the item contains a PDF document, do not auto-track it via scrolling
+        if (item.querySelector('.pdf-viewer-section')) {
+            return;
+        }
+
         const contentPreview = item.querySelector('.content-preview');
         if (!contentPreview) return;
         
@@ -124,6 +129,57 @@ async function markTheoryContentViewed(contentId) {
         }
     } catch (error) {
         console.error('Error marking theory content:', error);
+    }
+}
+
+async function markPdfAsRead(button, contentId) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const lessonId = urlParams.get('lessonId');
+    const courseSlug = window.location.pathname.split('/')[2];
+    
+    if (!lessonId || !courseSlug || !contentId) return;
+    
+    button.disabled = true;
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang ghi nhận...';
+    
+    try {
+        const response = await fetch('/api/course-progress/mark-content-complete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                courseSlug: courseSlug,
+                lessonId: parseInt(lessonId),
+                contentId: contentId,
+                contentType: 'Theory'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (typeof toastr !== 'undefined') {
+                toastr.success('Đã hoàn thành đọc tài liệu!');
+            }
+            button.className = 'btn btn-success rounded-pill px-4 py-2 mark-pdf-read-btn disabled';
+            button.innerHTML = '<i class="fas fa-check-circle me-2"></i>Đã đọc xong tài liệu';
+            loadCourseProgress();
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.error(data.message || 'Không thể đánh dấu hoàn thành');
+            }
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        }
+    } catch (error) {
+        console.error('Error marking PDF content:', error);
+        if (typeof toastr !== 'undefined') {
+            toastr.error('Đã xảy ra lỗi kết nối');
+        }
+        button.disabled = false;
+        button.innerHTML = originalHtml;
     }
 }
 
@@ -1054,6 +1110,18 @@ function loadCourseProgress() {
                     if (progressText) {
                         progressText.textContent = `${Math.round(percentage)}% (${data.completedContents}/${data.totalContents})`;
                     }
+                }
+                
+                // Update completed content buttons (PDF buttons)
+                if (data.completedContentIds && data.completedContentIds.length > 0) {
+                    data.completedContentIds.forEach(contentId => {
+                        const btn = document.querySelector(`.mark-pdf-read-btn[data-content-id="${contentId}"]`);
+                        if (btn) {
+                            btn.className = 'btn btn-success rounded-pill px-4 py-2 mark-pdf-read-btn disabled';
+                            btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Đã đọc xong tài liệu';
+                            btn.disabled = true;
+                        }
+                    });
                 }
                 
                 // Update completed lessons UI
