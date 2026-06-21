@@ -56,7 +56,7 @@ namespace Quiz_Web.Controllers.API
                         email = user.Email,
                         fullName = user.FullName,
                         phone = user.Phone,
-                        role = user.Role,
+                        role = user.Role != null ? new { roleId = user.Role.RoleId, name = user.Role.Name } : null,
                         createdAt = user.CreatedAt
                     }
                 });
@@ -114,7 +114,7 @@ namespace Quiz_Web.Controllers.API
                         userId = user.UserId,
                         fullName = user.FullName,
                         email = user.Email,
-                        role = user.Role
+                        role = user.Role != null ? new { roleId = user.Role.RoleId, name = user.Role.Name } : null
                     }
                 });
             }
