@@ -20,8 +20,49 @@ namespace Quiz_Web.Controllers.API
             _logger = logger;
         }
 
+        // GET: api/TestApi/completed
+        [HttpGet("completed")]
+        public async Task<IActionResult> GetCompletedTests()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { success = false, message = "Người dùng chưa xác thực" });
+                }
+
+                var completedTests = await _context.TestAttempts
+                    .Include(ta => ta.Test)
+                        .ThenInclude(t => t.Owner)
+                    .Where(ta => ta.UserId == userId && (ta.Status == "completed" || ta.Status == "Graded"))
+                    .OrderByDescending(ta => ta.SubmittedAt)
+                    .Select(ta => new
+                    {
+                        attemptId = ta.AttemptId,
+                        testId = ta.TestId,
+                        testTitle = ta.Test.Title,
+                        startedAt = ta.StartedAt,
+                        submittedAt = ta.SubmittedAt,
+                        score = ta.Score,
+                        maxScore = ta.MaxScore,
+                        timeSpentSec = ta.TimeSpentSec,
+                        status = ta.Status,
+                        teacherName = ta.Test.Owner != null ? ta.Test.Owner.FullName : "Giảng viên"
+                    })
+                    .ToListAsync();
+
+                return Ok(new { success = true, attempts = completedTests });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "API error getting completed tests");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải lịch sử bài kiểm tra" });
+            }
+        }
+
         // GET: api/TestApi/{testId}
-        [HttpGet("{testId}")]
+        [HttpGet("{testId:int}")]
         public async Task<IActionResult> GetTestQuestions(int testId)
         {
             try
