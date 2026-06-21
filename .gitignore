@@ -425,6 +425,7 @@ secrets.json
 appsettings.Development.json
 appsettings.Staging.json
 appsettings.Test.json
+google-creds.json
 !appsettings.json
 /BOOTSTRAP_MIGRATION.md
 /FLASHCARD_COMPLETION_FEATURE.md

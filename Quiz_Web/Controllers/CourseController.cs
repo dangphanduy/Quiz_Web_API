@@ -17,19 +17,22 @@ namespace Quiz_Web.Controllers
 		private readonly IWebHostEnvironment _env;
 		private readonly LearningPlatformContext _context;
 		private readonly IStorageService _storageService;
+		private readonly ICourseAccessService _courseAccessService;
 
 		public CourseController(
 			ILogger<CourseController> logger,
 			ICourseService courseService,
 			IWebHostEnvironment env,
 			LearningPlatformContext context,
-			IStorageService storageService)
+			IStorageService storageService,
+			ICourseAccessService courseAccessService)
 		{
 			_logger = logger;
 			_courseService = courseService;
 			_env = env;
 			_context = context;
 			_storageService = storageService;
+			_courseAccessService = courseAccessService;
 		}
 
 		// GET: /courses
@@ -150,7 +153,7 @@ namespace Quiz_Web.Controllers
 				var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 				if (!allowed.Contains(ext))
 				{
-					ModelState.AddModelError(nameof(model.CoverUrl), "–?nh d?ng ?nh khÙng h?p l? (jpg, jpeg, png, gif, webp).");
+					ModelState.AddModelError(nameof(model.CoverUrl), "√ê?nh d?ng ?nh kh√¥ng h?p l? (jpg, jpeg, png, gif, webp).");
 					return View(model);
 				}
 
@@ -171,7 +174,7 @@ namespace Quiz_Web.Controllers
 
 			if (!_courseService.IsSlugUnique(model.Slug))
 			{
-				ModelState.AddModelError("Slug", "Slug n‡y d„ t?n t?i. Vui lÚng ch?n slug kh·c.");
+				ModelState.AddModelError("Slug", "Slug n√†y d√£ t?n t?i. Vui l√≤ng ch?n slug kh√°c.");
 				return View(model);
 			}
 
@@ -179,11 +182,11 @@ namespace Quiz_Web.Controllers
 
 			if (course == null)
 			{
-				TempData["Error"] = "CÛ l?i x?y ra khi t?o khÛa h?c";
+				TempData["Error"] = "C√≥ l?i x?y ra khi t?o kh√≥a h?c";
 				return View(model);
 			}
 
-			TempData["Success"] = "T?o khÛa h?c th‡nh cÙng!";
+			TempData["Success"] = "T?o kh√≥a h?c th√†nh c√¥ng!";
 			return RedirectToAction("Detail", new { slug = course.Slug });
 		}
 
@@ -251,7 +254,7 @@ namespace Quiz_Web.Controllers
 				var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 				if (!allowed.Contains(ext))
 				{
-					ModelState.AddModelError(nameof(model.CoverUrl), "–?nh d?ng ?nh khÙng h?p l? (jpg, jpeg, png, gif, webp).");
+					ModelState.AddModelError(nameof(model.CoverUrl), "√ê?nh d?ng ?nh kh√¥ng h?p l? (jpg, jpeg, png, gif, webp).");
 					return View("Edit", model);
 				}
 
@@ -275,7 +278,7 @@ namespace Quiz_Web.Controllers
 				.Any(c => c.Slug == model.Slug && c.CourseId != model.CourseId);
 			if (slugClash)
 			{
-				ModelState.AddModelError(nameof(model.Slug), "Slug n‡y d„ t?n t?i.");
+				ModelState.AddModelError(nameof(model.Slug), "Slug n√†y d√£ t?n t?i.");
 				return View("Edit", model);
 			}
 
@@ -283,11 +286,11 @@ namespace Quiz_Web.Controllers
 			var updated = _courseService.UpdateCourse(model, userId, sanitized);
 			if (updated == null)
 			{
-				TempData["Error"] = "KhÙng th? c?p nh?t khÛa h?c.";
+				TempData["Error"] = "Kh√¥ng th? c?p nh?t kh√≥a h?c.";
 				return View("Edit", model);
 			}
 
-			TempData["Success"] = "C?p nh?t khÛa h?c th‡nh cÙng!";
+			TempData["Success"] = "C?p nh?t kh√≥a h?c th√†nh c√¥ng!";
 			return RedirectToAction("Detail", new { slug = updated.Slug });
 		}
 
@@ -372,7 +375,7 @@ namespace Quiz_Web.Controllers
 		public IActionResult Enroll(int id)
 		{
 			_logger.LogInformation($"Enroll attempt for course ID: {id}");
-			TempData["Info"] = "TÌnh nang dang k˝ khÛa h?c dang du?c ph·t tri?n!";
+			TempData["Info"] = "T√≠nh nang dang k√Ω kh√≥a h?c dang du?c ph√°t tri?n!";
 			return RedirectToAction(nameof(Detail), new { id });
 		}
 
@@ -389,9 +392,9 @@ namespace Quiz_Web.Controllers
 
 			var ok = _courseService.DeleteCourse(id, userId, _env.WebRootPath);
 			if (!ok)
-				TempData["Error"] = "KhÙng th? xÛa khÛa h?c.";
+				TempData["Error"] = "Kh√¥ng th? x√≥a kh√≥a h?c.";
 			else
-				TempData["Success"] = "–„ xÛa khÛa h?c.";
+				TempData["Success"] = "√ê√£ x√≥a kh√≥a h?c.";
 
 			return RedirectToAction(nameof(My));
 		}
@@ -435,7 +438,7 @@ namespace Quiz_Web.Controllers
 			// Proactively return 409 if slug duplicates (excluding current course when editing)
 			if (!_courseService.IsSlugUnique(model.Slug, model.CourseId))
 			{
-				return StatusCode(409, new { success = false, code = "DuplicateSlug", message = "Slug n‡y d„ t?n t?i." });
+				return StatusCode(409, new { success = false, code = "DuplicateSlug", message = "Slug n√†y d√£ t?n t?i." });
 			}
 
 			var success = _courseService.AutosaveCourse(model.CourseId, model, userId);
@@ -443,7 +446,7 @@ namespace Quiz_Web.Controllers
 			return Json(new CourseBuilderResponse
 			{
 				Success = success,
-				Message = success ? "–„ luu t? d?ng" : "L?i luu t? d?ng"
+				Message = success ? "√ê√£ luu t? d?ng" : "L?i luu t? d?ng"
 			});
 		}
 
@@ -473,7 +476,7 @@ namespace Quiz_Web.Controllers
 
 				if (model == null)
 				{
-					TempData["Error"] = "D? li?u khÙng h?p l?";
+					TempData["Error"] = "D? li?u kh√¥ng h?p l?";
 					return RedirectToAction(nameof(Builder));
 				}
 
@@ -484,7 +487,7 @@ namespace Quiz_Web.Controllers
 					var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 					if (!allowed.Contains(ext))
 					{
-						TempData["Error"] = "–?nh d?ng ?nh khÙng h?p l? (jpg, jpeg, png, gif, webp).";
+						TempData["Error"] = "√ê?nh d?ng ?nh kh√¥ng h?p l? (jpg, jpeg, png, gif, webp).";
 						return RedirectToAction(nameof(Builder));
 					}
 
@@ -525,7 +528,7 @@ namespace Quiz_Web.Controllers
 				// Check slug uniqueness
 				if (!_courseService.IsSlugUnique(model.Slug))
 				{
-					TempData["Error"] = "Slug n‡y d„ t?n t?i. Vui lÚng ch?n slug kh·c.";
+					TempData["Error"] = "Slug n√†y d√£ t?n t?i. Vui l√≤ng ch?n slug kh√°c.";
 					ViewBag.Categories = _courseService.GetAllCategories();
 					return View("Builder", model);
 				}
@@ -535,18 +538,18 @@ namespace Quiz_Web.Controllers
 
 				if (course == null)
 				{
-					TempData["Error"] = "CÛ l?i x?y ra khi t?o khÛa h?c";
+					TempData["Error"] = "C√≥ l?i x?y ra khi t?o kh√≥a h?c";
 					ViewBag.Categories = _courseService.GetAllCategories();
 					return View("Builder", model);
 				}
 
-				TempData["Success"] = "T?o khÛa h?c th‡nh cÙng!";
+				TempData["Success"] = "T?o kh√≥a h?c th√†nh c√¥ng!";
 				return RedirectToAction("Detail", new { slug = course.Slug });
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error saving course builder");
-				TempData["Error"] = "CÛ l?i x?y ra: " + ex.Message;
+				TempData["Error"] = "C√≥ l?i x?y ra: " + ex.Message;
 				return RedirectToAction(nameof(Builder));
 			}
 		}
@@ -578,7 +581,7 @@ namespace Quiz_Web.Controllers
 
 				if (model == null)
 				{
-					TempData["Error"] = "D? li?u khÙng h?p l?";
+					TempData["Error"] = "D? li?u kh√¥ng h?p l?";
 					return RedirectToAction(nameof(Builder), new { id });
 				}
 
@@ -589,7 +592,7 @@ namespace Quiz_Web.Controllers
 					var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 					if (!allowed.Contains(ext))
 					{
-						TempData["Error"] = "–?nh d?ng ?nh khÙng h?p l? (jpg, jpeg, png, gif, webp).";
+						TempData["Error"] = "√ê?nh d?ng ?nh kh√¥ng h?p l? (jpg, jpeg, png, gif, webp).";
 						return RedirectToAction(nameof(Builder), new { id });
 					}
 
@@ -632,29 +635,29 @@ namespace Quiz_Web.Controllers
 
 				if (course == null)
 				{
-					TempData["Error"] = "KhÙng th? c?p nh?t khÛa h?c.";
+					TempData["Error"] = "Kh√¥ng th? c?p nh?t kh√≥a h?c.";
 					return RedirectToAction(nameof(Builder), new { id });
 				}
 
-				TempData["Success"] = "C?p nh?t khÛa h?c th‡nh cÙng!";
+				TempData["Success"] = "C?p nh?t kh√≥a h?c th√†nh c√¥ng!";
 				return RedirectToAction("Detail", new { slug = course.Slug });
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error updating course builder");
-				TempData["Error"] = "CÛ l?i x?y ra: " + ex.Message;
+				TempData["Error"] = "C√≥ l?i x?y ra: " + ex.Message;
 				return RedirectToAction(nameof(Builder), new { id });
 			}
 		}
 
-		// NEW: API ki?m tra slug cÛ kh? d?ng khÙng (d˘ng cho Builder step 1)
+		// NEW: API ki?m tra slug c√≥ kh? d?ng kh√¥ng (d√πng cho Builder step 1)
 		[Authorize]
 		[HttpGet]
 		[Route("/courses/check-slug")]
 		public IActionResult CheckSlug([FromQuery] string slug, [FromQuery] int? excludeId)
 		{
 			if (string.IsNullOrWhiteSpace(slug))
-				return Json(new { available = false, message = "Slug khÙng h?p l?" });
+				return Json(new { available = false, message = "Slug kh√¥ng h?p l?" });
 
 			var available = _courseService.IsSlugUnique(slug, excludeId);
 			return Json(new { available });
@@ -715,7 +718,7 @@ namespace Quiz_Web.Controllers
 		[Authorize]
 		[Route("/courses/{slug}/learn")]
 		[HttpGet]
-		public IActionResult Learn(string slug, int? chapterId = null, int? lessonId = null)
+		public async Task<IActionResult> Learn(string slug, int? chapterId = null, int? lessonId = null)
 		{
 			_logger.LogInformation($"Course Learn - Slug: {slug}, ChapterId: {chapterId}, LessonId: {lessonId}");
 			
@@ -731,28 +734,29 @@ namespace Quiz_Web.Controllers
 			if (course == null)
 			{
 				_logger.LogWarning($"Course not found with slug: {slug}");
-				TempData["Error"] = "KhÙng tÏm th?y khÛa h?c.";
+				TempData["Error"] = "Kh√¥ng t√¨m th?y kh√≥a h?c.";
 				return RedirectToAction(nameof(Index));
 			}
 
-			// Check if user has access to this course (purchased or is owner)
+			// Check if user has access to this course (owner, purchased course, or active subscription)
 			var isOwner = course.OwnerId == userId;
-			var hasPurchased = course.CoursePurchases?.Any(p => p.BuyerId == userId && p.Status == "Paid") ?? false;
+			var hasAccess = isOwner ||
+				await _courseAccessService.CheckCourseAccessAsync(userId, course.CourseId, HttpContext.RequestAborted);
 
-			// ? FIXED: Allow owner to preview even if not published
-			if (!isOwner && !hasPurchased)
+			// Allow owner to preview even if not published; subscribers can view all courses.
+			if (!hasAccess)
 			{
-				TempData["Error"] = "B?n c?n mua khÛa h?c n‡y d? xem n?i dung.";
+				TempData["Error"] = "B?n c?n mua kh√≥a h?c n√†y d? xem n?i dung.";
 				return RedirectToAction("Detail", new { slug });
 			}
 
 			// If no chapters or lessons exist
 			if (course.CourseChapters == null || !course.CourseChapters.Any())
 			{
-				TempData["Error"] = "KhÛa h?c n‡y chua cÛ n?i dung.";
+				TempData["Error"] = "Kh√≥a h?c n√†y chua c√≥ n?i dung.";
 				if (isOwner)
 				{
-					TempData["Info"] = "H„y thÍm chuong v‡ b‡i h?c v‡o khÛa h?c c?a b?n.";
+					TempData["Info"] = "H√£y th√™m chuong v√† b√†i h?c v√†o kh√≥a h?c c?a b?n.";
 					return RedirectToAction("Builder", new { id = course.CourseId });
 				}
 				return RedirectToAction("Detail", new { slug });
@@ -772,7 +776,7 @@ namespace Quiz_Web.Controllers
 				}
 				
 				// No lessons found
-				TempData["Error"] = "KhÛa h?c n‡y chua cÛ b‡i h?c n‡o.";
+				TempData["Error"] = "Kh√≥a h?c n√†y chua c√≥ b√†i h?c n√†o.";
 				if (isOwner)
 				{
 					return RedirectToAction("Builder", new { id = course.CourseId });
@@ -787,7 +791,7 @@ namespace Quiz_Web.Controllers
 			if (currentChapter == null || currentLesson == null)
 			{
 				_logger.LogWarning($"Lesson not found - ChapterId: {chapterId}, LessonId: {lessonId}");
-				TempData["Error"] = "KhÙng tÏm th?y b‡i h?c.";
+				TempData["Error"] = "Kh√¥ng t√¨m th?y b√†i h?c.";
 				return RedirectToAction("Detail", new { slug });
 			}
 
@@ -799,7 +803,7 @@ namespace Quiz_Web.Controllers
 			return View();
 		}
 
-		// GET: /courses/revenue - th?ng kÍ doanh thu t? c·c khÛa h?c c?a ngu?i d˘ng
+		// GET: /courses/revenue - th?ng k√™ doanh thu t? c√°c kh√≥a h?c c?a ngu?i d√πng
 		[Authorize]
 		[Route("/courses/revenue")]
 		[HttpGet]
@@ -809,14 +813,14 @@ namespace Quiz_Web.Controllers
 			if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
 				return Challenge();
 
-			// L?y danh s·ch khÛa h?c c?a ngu?i d˘ng c˘ng v?i thÙng tin mua h‡ng
+			// L?y danh s√°ch kh√≥a h?c c?a ngu?i d√πng c√πng v?i th√¥ng tin mua h√†ng
 			var courses = _context.Courses
 				.Include(c => c.CoursePurchases)
 				.Where(c => c.OwnerId == userId && c.IsPublished)
 				.OrderByDescending(c => c.CreatedAt)
 				.ToList();
 
-			// TÌnh to·n doanh thu cho t?ng khÛa h?c
+			// T√≠nh to√°n doanh thu cho t?ng kh√≥a h?c
 			var revenueData = courses.Select(c => new CourseRevenueViewModel
 			{
 				CourseId = c.CourseId,
@@ -825,10 +829,10 @@ namespace Quiz_Web.Controllers
 				TotalPurchases = c.CoursePurchases.Count(p => p.Status == "Paid"),
 				GrossRevenue = c.Price * c.CoursePurchases.Count(p => p.Status == "Paid"),
 				InstructorRevenue = c.Price * c.CoursePurchases.Count(p => p.Status == "Paid") * 0.60m, // 60% cho ngu?i t?o
-				PlatformFee = c.Price * c.CoursePurchases.Count(p => p.Status == "Paid") * 0.40m // 40% phÌ n?n t?ng
+				PlatformFee = c.Price * c.CoursePurchases.Count(p => p.Status == "Paid") * 0.40m // 40% ph√≠ n?n t?ng
 			}).ToList();
 
-			// TÌnh t?ng doanh thu
+			// T√≠nh t?ng doanh thu
 			ViewBag.TotalGrossRevenue = revenueData.Sum(r => r.GrossRevenue);
 			ViewBag.TotalInstructorRevenue = revenueData.Sum(r => r.InstructorRevenue);
 			ViewBag.TotalPlatformFee = revenueData.Sum(r => r.PlatformFee);
