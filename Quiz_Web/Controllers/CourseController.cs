@@ -16,17 +16,20 @@ namespace Quiz_Web.Controllers
 		private readonly ICourseService _courseService;
 		private readonly IWebHostEnvironment _env;
 		private readonly LearningPlatformContext _context;
+		private readonly IStorageService _storageService;
 
 		public CourseController(
 			ILogger<CourseController> logger,
 			ICourseService courseService,
 			IWebHostEnvironment env,
-			LearningPlatformContext context)
+			LearningPlatformContext context,
+			IStorageService storageService)
 		{
 			_logger = logger;
 			_courseService = courseService;
 			_env = env;
 			_context = context;
+			_storageService = storageService;
 		}
 
 		// GET: /courses
@@ -667,15 +670,15 @@ namespace Quiz_Web.Controllers
 		{
 			try
 			{
-				_logger.LogInformation("Video upload request received");
+				_logger.LogInformation("Video upload request received for Google Cloud Storage");
 
 				if (video == null || video.Length == 0)
 				{
 					_logger.LogWarning("No video file received");
-					return Json(new { success = false, message = "Không có file du?c t?i lên." });
+					return Json(new { success = false, message = "Khng c file no du?c nh?n." });
 				}
 
-				_logger.LogInformation($"Uploading video: {video.FileName}, Size: {video.Length} bytes");
+				_logger.LogInformation($"Uploading video to GCS: {video.FileName}, Size: {video.Length} bytes");
 
 				// Validate file type
 				var allowed = new[] { ".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv" };
@@ -683,7 +686,7 @@ namespace Quiz_Web.Controllers
 				if (!allowed.Contains(ext))
 				{
 					_logger.LogWarning($"Invalid file type: {ext}");
-					return Json(new { success = false, message = $"Ð?nh d?ng video không h?p l?. Ch? ch?p nh?n: {string.Join(", ", allowed)}" });
+					return Json(new { success = false, message = $"D?nh d?ng video khng h?p l?. Ch? ch?p nh?n: {string.Join(", ", allowed)}" });
 				}
 
 				// Validate file size (100MB)
@@ -691,35 +694,20 @@ namespace Quiz_Web.Controllers
 				if (video.Length > maxSize)
 				{
 					_logger.LogWarning($"File too large: {video.Length} bytes");
-					return Json(new { success = false, message = "Kích thu?c video không du?c vu?t quá 100MB." });
+					return Json(new { success = false, message = "Kch thu?c video khng du?c vu?t qu 100MB." });
 				}
 
-				// Create upload folder
-				var folder = $"uploads/videos/{DateTime.UtcNow:yyyy/MM}";
-				var physical = Path.Combine(_env.WebRootPath, folder);
-				Directory.CreateDirectory(physical);
+				// G?i service ?? upload tr?c ti?p ln GCS trong thu m?c ""uploads/videos""
+				var videoUrl = await _storageService.UploadFileAsync(video, "uploads/videos");
 
-				// Generate unique filename
-				var fileName = $"{Guid.NewGuid():N}{ext}";
-				var fullPath = Path.Combine(physical, fileName);
-
-				// Save file
-				await using (var stream = System.IO.File.Create(fullPath))
-				{
-					await video.CopyToAsync(stream);
-				}
-
-				// Return video URL
-				var videoUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
-
-				_logger.LogInformation($"Video uploaded successfully: {videoUrl}");
+				_logger.LogInformation($"Video uploaded to GCS successfully: {videoUrl}");
 
 				return Json(new { success = true, videoUrl = videoUrl });
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Video upload failed");
-				return Json(new { success = false, message = $"Có l?i x?y ra khi t?i video lên: {ex.Message}" });
+				_logger.LogError(ex, "Video upload to GCS failed");
+				return Json(new { success = false, message = $"C l?i x?y ra khi t?i video ln GCS: {ex.Message}" });
 			}
 		}
 
