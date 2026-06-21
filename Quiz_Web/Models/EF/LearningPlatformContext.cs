@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.Entities;
@@ -457,6 +457,7 @@ public partial class LearningPlatformContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.VideoUrl).HasMaxLength(500);
+            entity.Property(e => e.DocumentUrl).HasMaxLength(500);
 
             entity.HasOne(d => d.Lesson).WithMany(p => p.LessonContents)
                 .HasForeignKey(d => d.LessonId)

@@ -1,4 +1,4 @@
-﻿// ============================================
+// ============================================
 // COURSE BUILDER - JAVASCRIPT
 // ============================================
 
@@ -1313,9 +1313,33 @@ function renderContentItem(content, index) {
 function renderContentTypeFields(content, contentId, index) {
     if (content.contentType === 'Theory') {
         return `
-            <div class="form-group">
-                <label>Nội dung:</label>
+            <div class="form-group mb-3">
+                <label>Nội dung văn bản (Lý thuyết):</label>
                 <textarea id="contentBody_${contentId}" class="form-control" rows="10">${content.body || ''}</textarea>
+            </div>
+            <div class="form-group mb-3">
+                <label class="form-label fw-semibold"><i class="fas fa-file-pdf text-danger me-2"></i>Tài liệu đính kèm (PDF):</label>
+                <input type="file" class="form-control" accept="application/pdf"
+                    onchange="handlePdfUpload(${index}, this)">
+                <small class="form-text text-muted">
+                    Hỗ trợ file PDF (tối đa 50MB). Tài liệu sẽ được lưu trên Google Cloud Storage.
+                </small>
+                ${content.documentUrl ? `
+                    <div class="pdf-preview-container mt-2 p-2 border rounded bg-light d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-pdf fa-2x text-danger me-3"></i>
+                            <div>
+                                <a href="${content.documentUrl}" target="_blank" class="text-decoration-none fw-bold text-primary pdf-filename-link">
+                                    ${content.documentUrl.substring(content.documentUrl.lastIndexOf('/') + 1)}
+                                </a>
+                                <div class="text-muted small">Tài liệu đã được tải lên Cloud Storage</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removePdfFile(${index})">
+                            <i class="fas fa-trash-alt"></i> Xóa
+                        </button>
+                    </div>
+                ` : ''}
             </div>
         `;
     } else if (content.contentType === 'Video') {
@@ -1656,6 +1680,135 @@ function handleVideoUpload(index, input) {
     }
 
     xhr.send(formData);
+}
+
+function handlePdfUpload(index, input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    // Check file type
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        toastr.error('Vui lòng chọn file PDF hợp lệ');
+        input.value = '';
+        return;
+    }
+
+    // Check file size (50MB)
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+        toastr.error('Kích thước tài liệu không được vượt quá 50MB');
+        input.value = '';
+        return;
+    }
+
+    // FormData
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    // XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    let progressToast = null;
+    let lastUpdateTime = 0;
+
+    // Track progress
+    xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            const now = Date.now();
+
+            if (now - lastUpdateTime < 100) return;
+            lastUpdateTime = now;
+
+            if (!progressToast) {
+                progressToast = toastr.info(`Đang tải tài liệu lên... ${percentComplete}%`, 'Thông báo', {
+                    timeOut: 0,
+                    extendedTimeOut: 0,
+                    closeButton: false,
+                    tapToDismiss: false,
+                    progressBar: true
+                });
+            } else {
+                const messageElement = progressToast.find('.toast-message');
+                if (messageElement.length) {
+                    messageElement.text(`Đang tải tài liệu lên... ${percentComplete}%`);
+                }
+                const progressBar = progressToast.find('.toast-progress');
+                if (progressBar.length) {
+                    progressBar.css('width', `${100 - percentComplete}%`);
+                }
+            }
+        }
+    });
+
+    // Handle completion
+    xhr.addEventListener('load', () => {
+        if (progressToast) {
+            toastr.clear(progressToast);
+            progressToast = null;
+        }
+
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success && data.pdfUrl) {
+                    toastr.success('Tải tài liệu lên thành công!');
+
+                    const currentLesson = window.currentLesson;
+                    if (currentLesson) {
+                        courseData.chapters[currentLesson.chapterIndex].lessons[currentLesson.lessonIndex].contents[index].documentUrl = data.pdfUrl;
+                    }
+                    loadLessonContents();
+                } else {
+                    toastr.error(data.message || 'Có lỗi xảy ra khi tải tài liệu lên');
+                    input.value = '';
+                }
+            } catch (error) {
+                console.error('Error parsing response:', error);
+                toastr.error('Có lỗi xảy ra khi xử lý phản hồi từ server');
+                input.value = '';
+            }
+        } else {
+            toastr.error(`Lỗi server: ${xhr.status} - ${xhr.statusText}`);
+            input.value = '';
+        }
+    });
+
+    // Handle errors
+    xhr.addEventListener('error', () => {
+        if (progressToast) {
+            toastr.clear(progressToast);
+            progressToast = null;
+        }
+        toastr.error('Có lỗi xảy ra khi tải tài liệu lên');
+        input.value = '';
+    });
+
+    // Handle abort
+    xhr.addEventListener('abort', () => {
+        if (progressToast) {
+            toastr.clear(progressToast);
+            progressToast = null;
+        }
+        toastr.warning('Upload bị hủy');
+        input.value = '';
+    });
+
+    xhr.open('POST', '/courses/upload-pdf');
+
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    if (token) {
+        xhr.setRequestHeader('RequestVerificationToken', token);
+    }
+
+    xhr.send(formData);
+}
+
+function removePdfFile(index) {
+    const currentLesson = window.currentLesson;
+    if (currentLesson) {
+        courseData.chapters[currentLesson.chapterIndex].lessons[currentLesson.lessonIndex].contents[index].documentUrl = null;
+        loadLessonContents();
+    }
 }
 
 function removeContent(index) {

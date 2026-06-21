@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Models.ViewModels;
@@ -462,6 +462,7 @@ namespace Quiz_Web.Services
 								Title = contentVM.Title,
 								Body = contentVM.Body,
 								VideoUrl = contentVM.VideoUrl,
+								DocumentUrl = contentVM.DocumentUrl,
 								OrderIndex = contentVM.OrderIndex,
 								CreatedAt = DateTime.UtcNow
 							};
@@ -705,6 +706,7 @@ namespace Quiz_Web.Services
 								Title = contentVM.Title,
 								Body = contentVM.Body,
 								VideoUrl = contentVM.VideoUrl, // ADD THIS LINE
+								DocumentUrl = contentVM.DocumentUrl,
 								OrderIndex = contentVM.OrderIndex,
 								CreatedAt = DateTime.UtcNow
 							};
@@ -783,6 +785,7 @@ namespace Quiz_Web.Services
 									Title = lc.Title,
 									Body = lc.Body,
 									VideoUrl = lc.VideoUrl,
+									DocumentUrl = lc.DocumentUrl,
 									OrderIndex = lc.OrderIndex
 								};
 
