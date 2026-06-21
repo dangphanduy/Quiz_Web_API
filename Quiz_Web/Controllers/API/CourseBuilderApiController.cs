@@ -15,15 +15,18 @@ namespace Quiz_Web.Controllers.API
         private readonly ICourseService _courseService;
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<CourseBuilderApiController> _logger;
+        private readonly IStorageService _storageService;
 
         public CourseBuilderApiController(
             ICourseService courseService,
             IWebHostEnvironment env,
-            ILogger<CourseBuilderApiController> logger)
+            ILogger<CourseBuilderApiController> logger,
+            IStorageService storageService)
         {
             _courseService = courseService;
             _env = env;
             _logger = logger;
+            _storageService = storageService;
         }
 
         private int GetCurrentUserId()
@@ -123,7 +126,7 @@ namespace Quiz_Web.Controllers.API
                     return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ" });
                 }
 
-                // Upload cover image
+                // Upload cover image to GCS
                 if (coverFile is { Length: > 0 })
                 {
                     var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
@@ -133,19 +136,7 @@ namespace Quiz_Web.Controllers.API
                         return BadRequest(new { success = false, message = "Định dạng ảnh không hợp lệ (jpg, jpeg, png, gif, webp)." });
                     }
 
-                    var folder = $"uploads/courses/{DateTime.UtcNow:yyyy/MM}";
-                    var physical = Path.Combine(_env.WebRootPath, folder);
-                    Directory.CreateDirectory(physical);
-
-                    var fileName = $"{Guid.NewGuid():N}{ext}";
-                    var fullPath = Path.Combine(physical, fileName);
-
-                    await using (var stream = System.IO.File.Create(fullPath))
-                    {
-                        await coverFile.CopyToAsync(stream);
-                    }
-
-                    model.CoverUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+                    model.CoverUrl = await _storageService.UploadFileAsync(coverFile, "uploads/courses");
                 }
 
                 // Sanitize HTML content
@@ -214,7 +205,7 @@ namespace Quiz_Web.Controllers.API
                     return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ" });
                 }
 
-                // Upload cover image
+                // Upload cover image to GCS
                 if (coverFile is { Length: > 0 })
                 {
                     var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
@@ -224,19 +215,7 @@ namespace Quiz_Web.Controllers.API
                         return BadRequest(new { success = false, message = "Định dạng ảnh không hợp lệ (jpg, jpeg, png, gif, webp)." });
                     }
 
-                    var folder = $"uploads/courses/{DateTime.UtcNow:yyyy/MM}";
-                    var physical = Path.Combine(_env.WebRootPath, folder);
-                    Directory.CreateDirectory(physical);
-
-                    var fileName = $"{Guid.NewGuid():N}{ext}";
-                    var fullPath = Path.Combine(physical, fileName);
-
-                    await using (var stream = System.IO.File.Create(fullPath))
-                    {
-                        await coverFile.CopyToAsync(stream);
-                    }
-
-                    model.CoverUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+                    model.CoverUrl = await _storageService.UploadFileAsync(coverFile, "uploads/courses");
                 }
 
                 // Sanitize HTML content
@@ -322,28 +301,53 @@ namespace Quiz_Web.Controllers.API
                     return BadRequest(new { success = false, message = "Kích thước video không được vượt quá 100MB." });
                 }
 
-                // Create upload folder
-                var folder = $"uploads/videos/{DateTime.UtcNow:yyyy/MM}";
-                var physical = Path.Combine(_env.WebRootPath, folder);
-                Directory.CreateDirectory(physical);
-
-                // Generate unique filename
-                var fileName = $"{Guid.NewGuid():N}{ext}";
-                var fullPath = Path.Combine(physical, fileName);
-
-                // Save file
-                await using (var stream = System.IO.File.Create(fullPath))
-                {
-                    await video.CopyToAsync(stream);
-                }
-
-                var url = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
-                return Ok(new { success = true, url, message = "Tải lên video thành công" });
+                // Upload to GCS
+                var videoUrl = await _storageService.UploadFileAsync(video, "uploads/videos");
+                return Ok(new { success = true, videoUrl = videoUrl, url = videoUrl, message = "Tải lên video thành công" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "API error uploading course builder video");
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải video lên." });
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải video lên: " + ex.Message });
+            }
+        }
+
+        // POST: api/courses/builder/upload-pdf
+        [HttpPost("upload-pdf")]
+        [RequestSizeLimit(52_428_800)] // 50MB limit
+        [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
+        public async Task<IActionResult> UploadPdf(IFormFile pdf)
+        {
+            try
+            {
+                if (pdf == null || pdf.Length == 0)
+                {
+                    return BadRequest(new { success = false, message = "Không có file tài liệu được tải lên." });
+                }
+
+                // Validate file type
+                var allowed = new[] { ".pdf" };
+                var ext = Path.GetExtension(pdf.FileName).ToLowerInvariant();
+                if (!allowed.Contains(ext))
+                {
+                    return BadRequest(new { success = false, message = "Định dạng tài liệu không hợp lệ. Chỉ chấp nhận file PDF." });
+                }
+
+                // Validate file size (50MB)
+                const long maxSize = 52_428_800;
+                if (pdf.Length > maxSize)
+                {
+                    return BadRequest(new { success = false, message = "Kích thước tài liệu không được vượt quá 50MB." });
+                }
+
+                // Upload to GCS
+                var pdfUrl = await _storageService.UploadFileAsync(pdf, "uploads/documents");
+                return Ok(new { success = true, pdfUrl = pdfUrl, url = pdfUrl, message = "Tải lên tài liệu thành công" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "API error uploading course builder pdf");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải tài liệu lên: " + ex.Message });
             }
         }
     }

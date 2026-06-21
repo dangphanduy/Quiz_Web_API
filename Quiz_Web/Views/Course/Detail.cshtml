@@ -1,4 +1,4 @@
-﻿@using System.Security.Claims
+@using System.Security.Claims
 @model Quiz_Web.Models.Entities.Course
 @inject Quiz_Web.Services.IServices.ICourseService CourseService
 @{
@@ -618,6 +618,16 @@
 					else
 					{
 						<div class="owner-actions-card">
+							@if (!string.IsNullOrEmpty(Model.CoverUrl))
+							{
+								<img src="@Model.CoverUrl" class="card-img-top" alt="@Model.Title" />
+							}
+							else
+							{
+								<div class="card-img-placeholder">
+									<i class="fas fa-book"></i>
+								</div>
+							}
 							<div class="card-body">
 								<h5 class="mb-3">Quản lý khóa học</h5>
 								<div class="d-grid gap-2">

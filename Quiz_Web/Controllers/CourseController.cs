@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Quiz_Web.Models.ViewModels;
 using Quiz_Web.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -153,28 +153,16 @@ namespace Quiz_Web.Controllers
 				var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 				if (!allowed.Contains(ext))
 				{
-					ModelState.AddModelError(nameof(model.CoverUrl), "Ð?nh d?ng ?nh không h?p l? (jpg, jpeg, png, gif, webp).");
+					ModelState.AddModelError(nameof(model.CoverUrl), "Ðịnh dạng ảnh không hợp lệ (jpg, jpeg, png, gif, webp).");
 					return View(model);
 				}
 
-				var folder = $"uploads/courses/{DateTime.UtcNow:yyyy/MM}";
-				var physical = Path.Combine(_env.WebRootPath, folder);
-				Directory.CreateDirectory(physical);
-
-				var fileName = $"{Guid.NewGuid():N}{ext}";
-				var fullPath = Path.Combine(physical, fileName);
-
-				await using (var stream = System.IO.File.Create(fullPath))
-				{
-					await coverFile.CopyToAsync(stream);
-				}
-
-				model.CoverUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+				model.CoverUrl = await _storageService.UploadFileAsync(coverFile, "uploads/courses");
 			}
 
 			if (!_courseService.IsSlugUnique(model.Slug))
 			{
-				ModelState.AddModelError("Slug", "Slug này dã t?n t?i. Vui lòng ch?n slug khác.");
+				ModelState.AddModelError("Slug", "Slug này đã tồn tại. Vui lòng chọn slug khác.");
 				return View(model);
 			}
 
@@ -182,11 +170,11 @@ namespace Quiz_Web.Controllers
 
 			if (course == null)
 			{
-				TempData["Error"] = "Có l?i x?y ra khi t?o khóa h?c";
+				TempData["Error"] = "Có lỗi xảy ra khi tạo khóa học";
 				return View(model);
 			}
 
-			TempData["Success"] = "T?o khóa h?c thành công!";
+			TempData["Success"] = "Tạo khóa học thành công!";
 			return RedirectToAction("Detail", new { slug = course.Slug });
 		}
 
@@ -254,7 +242,7 @@ namespace Quiz_Web.Controllers
 				var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 				if (!allowed.Contains(ext))
 				{
-					ModelState.AddModelError(nameof(model.CoverUrl), "Ð?nh d?ng ?nh không h?p l? (jpg, jpeg, png, gif, webp).");
+					ModelState.AddModelError(nameof(model.CoverUrl), "Ðịnh dạng ảnh không hợp lệ (jpg, jpeg, png, gif, webp).");
 					return View("Edit", model);
 				}
 
@@ -278,7 +266,7 @@ namespace Quiz_Web.Controllers
 				.Any(c => c.Slug == model.Slug && c.CourseId != model.CourseId);
 			if (slugClash)
 			{
-				ModelState.AddModelError(nameof(model.Slug), "Slug này dã t?n t?i.");
+				ModelState.AddModelError(nameof(model.Slug), "Slug này đã tồn tại.");
 				return View("Edit", model);
 			}
 
@@ -286,11 +274,11 @@ namespace Quiz_Web.Controllers
 			var updated = _courseService.UpdateCourse(model, userId, sanitized);
 			if (updated == null)
 			{
-				TempData["Error"] = "Không th? c?p nh?t khóa h?c.";
+				TempData["Error"] = "Không thể cập nhật khóa học.";
 				return View("Edit", model);
 			}
 
-			TempData["Success"] = "C?p nh?t khóa h?c thành công!";
+			TempData["Success"] = "Cập nhật khóa học thành công!";
 			return RedirectToAction("Detail", new { slug = updated.Slug });
 		}
 
@@ -375,7 +363,7 @@ namespace Quiz_Web.Controllers
 		public IActionResult Enroll(int id)
 		{
 			_logger.LogInformation($"Enroll attempt for course ID: {id}");
-			TempData["Info"] = "Tính nang dang ký khóa h?c dang du?c phát tri?n!";
+			TempData["Info"] = "Tính năng đăng ký khóa học đang được phát triển!";
 			return RedirectToAction(nameof(Detail), new { id });
 		}
 
@@ -392,9 +380,9 @@ namespace Quiz_Web.Controllers
 
 			var ok = _courseService.DeleteCourse(id, userId, _env.WebRootPath);
 			if (!ok)
-				TempData["Error"] = "Không th? xóa khóa h?c.";
+				TempData["Error"] = "Không thể xóa khóa học.";
 			else
-				TempData["Success"] = "Ðã xóa khóa h?c.";
+				TempData["Success"] = "Ðã xóa khóa học.";
 
 			return RedirectToAction(nameof(My));
 		}
@@ -438,7 +426,7 @@ namespace Quiz_Web.Controllers
 			// Proactively return 409 if slug duplicates (excluding current course when editing)
 			if (!_courseService.IsSlugUnique(model.Slug, model.CourseId))
 			{
-				return StatusCode(409, new { success = false, code = "DuplicateSlug", message = "Slug này dã t?n t?i." });
+				return StatusCode(409, new { success = false, code = "DuplicateSlug", message = "Slug này đã tồn tại." });
 			}
 
 			var success = _courseService.AutosaveCourse(model.CourseId, model, userId);
@@ -446,7 +434,7 @@ namespace Quiz_Web.Controllers
 			return Json(new CourseBuilderResponse
 			{
 				Success = success,
-				Message = success ? "Ðã luu t? d?ng" : "L?i luu t? d?ng"
+				Message = success ? "Ðã luu tự động" : "Lỗi lưu tự động"
 			});
 		}
 
@@ -476,7 +464,7 @@ namespace Quiz_Web.Controllers
 
 				if (model == null)
 				{
-					TempData["Error"] = "D? li?u không h?p l?";
+					TempData["Error"] = "Dữ liệu không hợp lệ";
 					return RedirectToAction(nameof(Builder));
 				}
 
@@ -487,23 +475,11 @@ namespace Quiz_Web.Controllers
 					var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 					if (!allowed.Contains(ext))
 					{
-						TempData["Error"] = "Ð?nh d?ng ?nh không h?p l? (jpg, jpeg, png, gif, webp).";
+						TempData["Error"] = "Ðịnh dạng ảnh không hợp lệ (jpg, jpeg, png, gif, webp).";
 						return RedirectToAction(nameof(Builder));
 					}
 
-					var folder = $"uploads/courses/{DateTime.UtcNow:yyyy/MM}";
-					var physical = Path.Combine(_env.WebRootPath, folder);
-					Directory.CreateDirectory(physical);
-
-					var fileName = $"{Guid.NewGuid():N}{ext}";
-					var fullPath = Path.Combine(physical, fileName);
-
-					await using (var stream = System.IO.File.Create(fullPath))
-					{
-						await coverFile.CopyToAsync(stream);
-					}
-
-					model.CoverUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+					model.CoverUrl = await _storageService.UploadFileAsync(coverFile, "uploads/courses");
 				}
 
 				// Sanitize HTML content
@@ -528,7 +504,7 @@ namespace Quiz_Web.Controllers
 				// Check slug uniqueness
 				if (!_courseService.IsSlugUnique(model.Slug))
 				{
-					TempData["Error"] = "Slug này dã t?n t?i. Vui lòng ch?n slug khác.";
+					TempData["Error"] = "Slug này đã tồn tại. Vui lòng chọn slug khác.";
 					ViewBag.Categories = _courseService.GetAllCategories();
 					return View("Builder", model);
 				}
@@ -538,18 +514,18 @@ namespace Quiz_Web.Controllers
 
 				if (course == null)
 				{
-					TempData["Error"] = "Có l?i x?y ra khi t?o khóa h?c";
+					TempData["Error"] = "Có lỗi xảy ra khi tạo khóa học";
 					ViewBag.Categories = _courseService.GetAllCategories();
 					return View("Builder", model);
 				}
 
-				TempData["Success"] = "T?o khóa h?c thành công!";
+				TempData["Success"] = "Tạo khóa học thành công!";
 				return RedirectToAction("Detail", new { slug = course.Slug });
 			}
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error saving course builder");
-				TempData["Error"] = "Có l?i x?y ra: " + ex.Message;
+				TempData["Error"] = "Có lỗi xảy ra: " + ex.Message;
 				return RedirectToAction(nameof(Builder));
 			}
 		}
@@ -581,7 +557,7 @@ namespace Quiz_Web.Controllers
 
 				if (model == null)
 				{
-					TempData["Error"] = "D? li?u không h?p l?";
+					TempData["Error"] = "Dữ liệu không hợp lệ";
 					return RedirectToAction(nameof(Builder), new { id });
 				}
 
@@ -592,23 +568,11 @@ namespace Quiz_Web.Controllers
 					var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
 					if (!allowed.Contains(ext))
 					{
-						TempData["Error"] = "Ð?nh d?ng ?nh không h?p l? (jpg, jpeg, png, gif, webp).";
+						TempData["Error"] = "Ðịnh dạng ảnh không hợp lệ (jpg, jpeg, png, gif, webp).";
 						return RedirectToAction(nameof(Builder), new { id });
 					}
 
-					var folder = $"uploads/courses/{DateTime.UtcNow:yyyy/MM}";
-					var physical = Path.Combine(_env.WebRootPath, folder);
-					Directory.CreateDirectory(physical);
-
-					var fileName = $"{Guid.NewGuid():N}{ext}";
-					var fullPath = Path.Combine(physical, fileName);
-
-					await using (var stream = System.IO.File.Create(fullPath))
-					{
-						await coverFile.CopyToAsync(stream);
-					}
-
-					model.CoverUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+					model.CoverUrl = await _storageService.UploadFileAsync(coverFile, "uploads/courses");
 				}
 
 				// Sanitize HTML content
@@ -635,7 +599,7 @@ namespace Quiz_Web.Controllers
 
 				if (course == null)
 				{
-					TempData["Error"] = "Không th? c?p nh?t khóa h?c.";
+					TempData["Error"] = "Không thể cập nhật khóa học.";
 					return RedirectToAction(nameof(Builder), new { id });
 				}
 
@@ -645,19 +609,19 @@ namespace Quiz_Web.Controllers
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Error updating course builder");
-				TempData["Error"] = "Có l?i x?y ra: " + ex.Message;
+				TempData["Error"] = "Có lỗi xảy ra: " + ex.Message;
 				return RedirectToAction(nameof(Builder), new { id });
 			}
 		}
 
-		// NEW: API ki?m tra slug có kh? d?ng không (dùng cho Builder step 1)
+		// NEW: API kiểm tra slug có khả dụng không (dùng cho Builder step 1)
 		[Authorize]
 		[HttpGet]
 		[Route("/courses/check-slug")]
 		public IActionResult CheckSlug([FromQuery] string slug, [FromQuery] int? excludeId)
 		{
 			if (string.IsNullOrWhiteSpace(slug))
-				return Json(new { available = false, message = "Slug không h?p l?" });
+				return Json(new { available = false, message = "Slug không hợp lệ" });
 
 			var available = _courseService.IsSlugUnique(slug, excludeId);
 			return Json(new { available });
@@ -714,6 +678,57 @@ namespace Quiz_Web.Controllers
 			}
 		}
 
+		// POST: /courses/upload-pdf - Upload PDF for theory content
+		[Authorize]
+		[Route("/courses/upload-pdf")]
+		[HttpPost]
+		[RequestSizeLimit(52_428_800)] // 50MB limit
+		[RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
+		public async Task<IActionResult> UploadPdf(IFormFile pdf)
+		{
+			try
+			{
+				_logger.LogInformation("PDF upload request received for Google Cloud Storage");
+
+				if (pdf == null || pdf.Length == 0)
+				{
+					_logger.LogWarning("No PDF file received");
+					return Json(new { success = false, message = "KhÃ´ng cÃ³ file nÃ o Ä‘Æ°á»£c nháº­n." });
+				}
+
+				_logger.LogInformation($"Uploading PDF to GCS: {pdf.FileName}, Size: {pdf.Length} bytes");
+
+				// Validate file type
+				var allowed = new[] { ".pdf" };
+				var ext = Path.GetExtension(pdf.FileName).ToLowerInvariant();
+				if (!allowed.Contains(ext))
+				{
+					_logger.LogWarning($"Invalid file type: {ext}");
+					return Json(new { success = false, message = "Äá»‹nh dáº¡ng file khÃ´ng há»£p lá»‡. Chá»‰ cháº¥p nháº­n file PDF." });
+				}
+
+				// Validate file size (50MB)
+				const long maxSize = 52_428_800; // 50MB
+				if (pdf.Length > maxSize)
+				{
+					_logger.LogWarning($"File too large: {pdf.Length} bytes");
+					return Json(new { success = false, message = "KÃ­ch thÆ°á»›c file PDF khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 50MB." });
+				}
+
+				// Upload to GCS inside "uploads/documents"
+				var pdfUrl = await _storageService.UploadFileAsync(pdf, "uploads/documents");
+
+				_logger.LogInformation($"PDF uploaded to GCS successfully: {pdfUrl}");
+
+				return Json(new { success = true, pdfUrl = pdfUrl });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "PDF upload to GCS failed");
+				return Json(new { success = false, message = $"CÃ³ lá»—i xáº£y ra khi táº£i file lÃªn GCS: {ex.Message}" });
+			}
+		}
+
 		// GET: /courses/{slug}/learn
 		[Authorize]
 		[Route("/courses/{slug}/learn")]
@@ -734,7 +749,7 @@ namespace Quiz_Web.Controllers
 			if (course == null)
 			{
 				_logger.LogWarning($"Course not found with slug: {slug}");
-				TempData["Error"] = "Không tìm th?y khóa h?c.";
+				TempData["Error"] = "Không tìm thấy khóa học.";
 				return RedirectToAction(nameof(Index));
 			}
 
@@ -746,17 +761,17 @@ namespace Quiz_Web.Controllers
 			// Allow owner to preview even if not published; subscribers can view all courses.
 			if (!hasAccess)
 			{
-				TempData["Error"] = "B?n c?n mua khóa h?c này d? xem n?i dung.";
+				TempData["Error"] = "Bạn cần mua khóa học này để xem nội dung.";
 				return RedirectToAction("Detail", new { slug });
 			}
 
 			// If no chapters or lessons exist
 			if (course.CourseChapters == null || !course.CourseChapters.Any())
 			{
-				TempData["Error"] = "Khóa h?c này chua có n?i dung.";
+				TempData["Error"] = "Khóa học này chưa có nội dung.";
 				if (isOwner)
 				{
-					TempData["Info"] = "Hãy thêm chuong và bài h?c vào khóa h?c c?a b?n.";
+					TempData["Info"] = "Hãy thêm chương và bài học vào khóa học của bạn.";
 					return RedirectToAction("Builder", new { id = course.CourseId });
 				}
 				return RedirectToAction("Detail", new { slug });
@@ -776,7 +791,7 @@ namespace Quiz_Web.Controllers
 				}
 				
 				// No lessons found
-				TempData["Error"] = "Khóa h?c này chua có bài h?c nào.";
+				TempData["Error"] = "Khóa học này chưa có bài học nào.";
 				if (isOwner)
 				{
 					return RedirectToAction("Builder", new { id = course.CourseId });
@@ -791,7 +806,7 @@ namespace Quiz_Web.Controllers
 			if (currentChapter == null || currentLesson == null)
 			{
 				_logger.LogWarning($"Lesson not found - ChapterId: {chapterId}, LessonId: {lessonId}");
-				TempData["Error"] = "Không tìm th?y bài h?c.";
+				TempData["Error"] = "Không tìm thấy bài học.";
 				return RedirectToAction("Detail", new { slug });
 			}
 
