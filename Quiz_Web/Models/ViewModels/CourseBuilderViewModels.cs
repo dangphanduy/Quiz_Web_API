@@ -93,6 +93,9 @@ namespace Quiz_Web.Models.ViewModels
 		[StringLength(2048, ErrorMessage = "URL video quá dài")]
 		public string? VideoUrl { get; set; } // For Video content type
 
+		[StringLength(2048, ErrorMessage = "URL tài liệu quá dài")]
+		public string? DocumentUrl { get; set; }
+
 		public int OrderIndex { get; set; }
 		
 		// For FlashcardSet content type

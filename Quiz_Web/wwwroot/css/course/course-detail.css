@@ -1,4 +1,4 @@
-﻿/* ==================== DESIGN SYSTEM ==================== */
+/* ==================== DESIGN SYSTEM ==================== */
 :root {
     /* Primary Colors - Teal/Dark Cyan Palette */
     --primary-teal: #0D3D47;
@@ -213,7 +213,8 @@ body > .container > main {
     font-size: 4rem;
 }
 
-.course-card-sidebar .card-img-top {
+.course-card-sidebar .card-img-top,
+.owner-actions-card .card-img-top {
     width: 100%;
     aspect-ratio: 16/9;
     object-fit: cover;
@@ -1073,17 +1074,19 @@ body > .container > main {
     background-clip: text;
 }
 .floating-sidebar-wrapper {
-    margin-top: -140px;               /* nổi lên hero */
+    margin-top: -280px;               /* nổi lên hero */
     position: sticky;                 
-    top: 110px;                       /* cách top khi sticky */
+    top: 90px;                        /* cách top khi sticky để không bị đè bởi navbar */
     z-index: 20;
     padding-bottom: 40px;
-    transform:translateY(-40%)
 }
 
-/* Đảm bảo sidebar không bị giãn bất thường */
+/* Đảm bảo sidebar không bị giãn bất thường và loại bỏ sticky/margin của phần tử con để wrapper quản lý */
 .floating-sidebar-wrapper > .course-card-sidebar,
 .floating-sidebar-wrapper > .owner-actions-card {
     width: 100%;
     border-radius: 18px;
+    position: relative !important;
+    top: auto !important;
+    margin-top: 0 !important;
 }

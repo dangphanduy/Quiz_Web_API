@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = ViewBag.CurrentLesson?.Title ?? "Xem bài học";
     Layout = "~/Views/Shared/_LayoutLearn.cshtml";
     
@@ -64,7 +64,7 @@
                     <div class="contents-list">
                         @foreach (var content in currentLesson.LessonContents.OrderBy(c => c.OrderIndex))
                         {
-                            @if (content.ContentType == "Theory" && !string.IsNullOrEmpty(content.Body))
+                            @if (content.ContentType == "Theory" && (!string.IsNullOrEmpty(content.Body) || !string.IsNullOrEmpty(content.DocumentUrl)))
                             {
                                 <div class="content-item theory-item" data-content-id="@content.ContentId">
                                     <div class="content-header">
@@ -76,9 +76,26 @@
                                             <span class="content-type-badge theory">Lý thuyết</span>
                                         </div>
                                     </div>
-                                    <div class="content-preview ck-content">
-                                        @Html.Raw(content.Body)
-                                    </div>
+                                    @if (!string.IsNullOrEmpty(content.Body))
+                                    {
+                                        <div class="content-preview ck-content">
+                                            @Html.Raw(content.Body)
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(content.DocumentUrl))
+                                    {
+                                        <div class="pdf-viewer-section mt-3">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <span class="fw-semibold text-muted"><i class="fas fa-paperclip me-1"></i> Tài liệu học tập (PDF)</span>
+                                                <a href="@content.DocumentUrl" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm">
+                                                    <i class="fas fa-external-link-alt me-1"></i> Mở trong tab mới
+                                                </a>
+                                            </div>
+                                            <div class="pdf-iframe-container shadow-sm rounded overflow-hidden border" style="height: 600px; width: 100%;">
+                                                <iframe src="@content.DocumentUrl" style="width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+                                            </div>
+                                        </div>
+                                    }
                                 </div>
                             }
                             else if (content.ContentType == "FlashcardSet" && content.RefId.HasValue)

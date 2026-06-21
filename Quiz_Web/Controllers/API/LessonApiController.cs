@@ -64,6 +64,7 @@ namespace Quiz_Web.Controllers.API
                         title = lc.Title,
                         body = lc.Body,
                         videoUrl = lc.VideoUrl,
+                        documentUrl = lc.DocumentUrl,
                         orderIndex = lc.OrderIndex
                     }).ToList()
                 };

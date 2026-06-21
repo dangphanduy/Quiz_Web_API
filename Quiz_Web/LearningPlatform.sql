@@ -1,4 +1,4 @@
-﻿/* =========================================================
+/* =========================================================
    Learning Platform — SQL Server DDL (REFRESHED, no Class)
    Model: Course → Chapter → Lesson → LessonContents
    Tests: Public window (OpenAt, CloseAt), scoring
@@ -366,6 +366,7 @@ CREATE TABLE dbo.LessonContents (
     Title       NVARCHAR(200)  NULL,
     Body        NVARCHAR(MAX)  NULL,
 	VideoUrl	NVARCHAR(500)	NULL,
+	DocumentUrl	NVARCHAR(500)	NULL,
     OrderIndex  INT            NOT NULL CONSTRAINT DF_LessonContents_Order DEFAULT (0),
     CreatedAt   DATETIME2(7)   NOT NULL CONSTRAINT DF_LessonContents_CreatedAt DEFAULT SYSUTCDATETIME(),
     CONSTRAINT CK_LessonContents_Type CHECK (ContentType IN ('Video','Theory','FlashcardSet','Test')),
