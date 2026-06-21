@@ -9,11 +9,16 @@ namespace Quiz_Web.Services
     {
         private readonly LearningPlatformContext _context;
         private readonly ILogger<CartService> _logger;
+        private readonly ICourseAccessService _courseAccessService;
 
-        public CartService(LearningPlatformContext context, ILogger<CartService> logger)
+        public CartService(
+            LearningPlatformContext context,
+            ILogger<CartService> logger,
+            ICourseAccessService courseAccessService)
         {
             _context = context;
             _logger = logger;
+            _courseAccessService = courseAccessService;
         }
 
         public async Task<ShoppingCart?> GetOrCreateCartAsync(int userId)
@@ -137,9 +142,7 @@ namespace Quiz_Web.Services
                     return false;
                 }
 
-                // Check if user already purchased (completed only)
-                var alreadyPurchased = await _context.CoursePurchases
-                    .AnyAsync(cp => cp.BuyerId == userId && cp.CourseId == courseId && cp.Status == "completed");
+                var alreadyPurchased = await _courseAccessService.CheckCourseAccessAsync(userId, courseId);
 
                 if (alreadyPurchased)
                 {
