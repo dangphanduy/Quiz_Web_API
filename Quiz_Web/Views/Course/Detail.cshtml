@@ -1,5 +1,6 @@
 ﻿@using System.Security.Claims
 @model Quiz_Web.Models.Entities.Course
+@inject Quiz_Web.Services.IServices.ICourseService CourseService
 @{
 	ViewData["Title"] = Model.Title;
 	var isOwner = (ViewBag.IsOwner as bool?) ?? false;
@@ -15,6 +16,7 @@
 	var userReview = userId > 0 ? Model.CourseReviews?.FirstOrDefault(r => r.UserId == userId) : null;
 	var hasPurchased = userId > 0 && Model.CoursePurchases?.Any(p => p.BuyerId == userId && p.Status == "Paid") == true;
 	var canReview = hasPurchased && userReview == null && !isOwner;
+	var relatedCourses = CourseService.GetRelatedCourses(Model.CourseId, 6);
 }
 
 @section Styles {
@@ -234,6 +236,97 @@
 						@Html.Raw(Model.Summary)
 					</div>
 				</div>
+
+				@if (relatedCourses.Any())
+				{
+					<section class="related-courses content-box" aria-labelledby="relatedCoursesTitle">
+						<div class="related-courses-header">
+							<div>
+								<span class="recommendation-eyebrow">
+									<i class="fas fa-wand-magic-sparkles"></i>
+									Gợi ý dành cho bạn
+								</span>
+								<h2 id="relatedCoursesTitle">Khóa học liên quan</h2>
+								<p>Dựa trên chủ đề, mức độ quan tâm và chất lượng khóa học.</p>
+							</div>
+							<div class="related-nav" aria-label="Điều hướng khóa học liên quan">
+								<button type="button" class="related-nav-btn" data-related-direction="-1"
+										aria-label="Xem khóa học trước">
+									<i class="fas fa-arrow-left"></i>
+								</button>
+								<button type="button" class="related-nav-btn" data-related-direction="1"
+										aria-label="Xem khóa học tiếp theo">
+									<i class="fas fa-arrow-right"></i>
+								</button>
+							</div>
+						</div>
+
+						<div class="related-course-track" id="relatedCourseTrack" tabindex="0">
+							@foreach (var relatedCourse in relatedCourses)
+							{
+								var paidStudentCount = relatedCourse.CoursePurchases?.Count(p => p.Status == "Paid") ?? 0;
+								var isSameCategory = Model.CategoryId.HasValue && relatedCourse.CategoryId == Model.CategoryId;
+								var recommendationReason = isSameCategory
+									? $"Cùng chủ đề {relatedCourse.Category?.Name}"
+									: relatedCourse.OwnerId == Model.OwnerId
+										? "Cùng giảng viên"
+										: "Được học viên quan tâm";
+
+								<article class="related-course-card">
+									<a asp-controller="Course" asp-action="Detail" asp-route-slug="@relatedCourse.Slug"
+									   class="related-course-cover" aria-label="Xem @relatedCourse.Title">
+										@if (!string.IsNullOrWhiteSpace(relatedCourse.CoverUrl))
+										{
+											<img src="@relatedCourse.CoverUrl" alt="" loading="lazy" />
+										}
+										else
+										{
+											<span class="related-cover-placeholder">
+												<i class="fas fa-book-open"></i>
+											</span>
+										}
+										<span class="related-reason">
+											<i class="fas fa-link"></i>
+											@recommendationReason
+										</span>
+									</a>
+
+									<div class="related-course-body">
+										@if (relatedCourse.Category != null)
+										{
+											<span class="related-category">@relatedCourse.Category.Name</span>
+										}
+										<h3>
+											<a asp-controller="Course" asp-action="Detail" asp-route-slug="@relatedCourse.Slug">
+												@relatedCourse.Title
+											</a>
+										</h3>
+										<p class="related-instructor">@relatedCourse.Owner.FullName</p>
+
+										<div class="related-course-meta">
+											<span class="related-rating">
+												<strong>@relatedCourse.AverageRating.ToString("F1")</strong>
+												<i class="fas fa-star"></i>
+												<small>(@relatedCourse.TotalReviews.ToString("N0"))</small>
+											</span>
+											<span><i class="fas fa-user-graduate"></i> @paidStudentCount.ToString("N0")</span>
+										</div>
+
+										<div class="related-course-footer">
+											<strong class="related-price">
+												@(relatedCourse.Price == 0 ? "Miễn phí" : $"₫{relatedCourse.Price:N0}")
+											</strong>
+											<a asp-controller="Course" asp-action="Detail" asp-route-slug="@relatedCourse.Slug"
+											   class="related-view-link">
+												Xem khóa học <i class="fas fa-arrow-right"></i>
+											</a>
+										</div>
+									</div>
+								</article>
+							}
+						</div>
+					</section>
+				}
 
 				<!-- Instructor -->
 				<div class="content-box" id="instructor-section">

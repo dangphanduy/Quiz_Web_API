@@ -10,11 +10,15 @@ namespace Quiz_Web.Services
 	{
 		private readonly LearningPlatformContext _context;
 		private readonly ILogger<CourseService> _logger;
+		private readonly IRecommendationService _recommendationService;
 
-		public CourseService(LearningPlatformContext context, ILogger<CourseService> logger)
+		public CourseService(
+			LearningPlatformContext context,
+			ILogger<CourseService> logger)
 		{
 			_context = context;
 			_logger = logger;
+			_recommendationService = new RecommendationService();
 		}
 
 		public List<Course> GetAllPublishedCourses()
@@ -977,6 +981,38 @@ namespace Quiz_Web.Services
 					.OrderByDescending(c => c.CreatedAt)
 					.Take(count)
 					.ToList();
+			}
+		}
+
+		public List<Course> GetRelatedCourses(int courseId, int count = 6)
+		{
+			try
+			{
+				var currentCourse = _context.Courses
+					.AsNoTracking()
+					.FirstOrDefault(c => c.CourseId == courseId);
+
+				if (currentCourse == null || count <= 0)
+					return new List<Course>();
+
+				var allPublishedCourses = _context.Courses
+					.AsNoTracking()
+					.Include(c => c.Owner)
+					.Include(c => c.Category)
+					.Include(c => c.CoursePurchases)
+					.AsSplitQuery()
+					.Where(c => c.IsPublished)
+					.ToList();
+
+				return _recommendationService.GetRelatedCourses(
+					currentCourse,
+					allPublishedCourses,
+					count);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting related courses for course {CourseId}", courseId);
+				return new List<Course>();
 			}
 		}
 
