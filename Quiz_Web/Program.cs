@@ -71,10 +71,29 @@ builder.Services.AddSingleton(sp =>
     return s;
 });
 
+// Configure Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        return apiDesc.RelativePath != null && apiDesc.RelativePath.StartsWith("api/", StringComparison.OrdinalIgnoreCase);
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Quiz Web API v1");
+        options.RoutePrefix = "swagger";
+    });
+}
+else
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
@@ -110,7 +129,7 @@ app.MapControllerRoute(
     pattern: "Checkout/{action=Index}/{id?}",
     defaults: new { controller = "Checkout" });
 
-// Route m?c ??nh tr? ??n Welcome action ?? x? lý logic
+// Route m?c ??nh tr? ??n Welcome action ?? x? lï¿½ logic
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Welcome}/{id?}")
