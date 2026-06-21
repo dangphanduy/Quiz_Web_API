@@ -8,4 +8,11 @@ public interface IRecommendationService
 		Course currentCourse,
 		List<Course> allCourses,
 		int limit = 5);
+
+	List<Course> GetNextCoursesToLearn(
+		int userId,
+		Course? recentlyCompletedCourse,
+		List<int> userEnrolledCourseIds,
+		List<Course> allCourses,
+		int limit = 10);
 }

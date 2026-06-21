@@ -33,42 +33,79 @@ public sealed class RecommendationService : IRecommendationService
 		ArgumentNullException.ThrowIfNull(currentCourse);
 		ArgumentNullException.ThrowIfNull(allCourses);
 
+		return RunTwoStagePipeline(
+			currentCourse,
+			allCourses,
+			new HashSet<int> { currentCourse.CourseId },
+			limit);
+	}
+
+	public List<Course> GetNextCoursesToLearn(
+		int userId,
+		Course? recentlyCompletedCourse,
+		List<int> userEnrolledCourseIds,
+		List<Course> allCourses,
+		int limit = 10)
+	{
+		if (userId <= 0)
+			throw new ArgumentOutOfRangeException(nameof(userId));
+
+		ArgumentNullException.ThrowIfNull(userEnrolledCourseIds);
+		ArgumentNullException.ThrowIfNull(allCourses);
+
+		if (limit <= 0 || allCourses.Count == 0)
+			return new List<Course>();
+
+		// Loại trừ ngay các khóa người dùng đã mua hoặc đã học.
+		var excludedCourseIds = userEnrolledCourseIds.ToHashSet();
+
+		// Tài khoản chưa hoàn thành khóa học nào nhận danh sách mặc định
+		// được xếp theo điểm Popularity trên toàn hệ thống.
+		if (recentlyCompletedCourse == null)
+			return GetMostPopularCourses(allCourses, excludedCourseIds, limit);
+
+		excludedCourseIds.Add(recentlyCompletedCourse.CourseId);
+
+		// Dùng lại toàn bộ Retrieval và Ranking của tính năng liên quan.
+		return RunTwoStagePipeline(
+			recentlyCompletedCourse,
+			allCourses,
+			excludedCourseIds,
+			limit);
+	}
+
+	private static List<Course> RunTwoStagePipeline(
+		Course currentCourse,
+		List<Course> allCourses,
+		HashSet<int> excludedCourseIds,
+		int limit)
+	{
 		if (limit <= 0 || allCourses.Count == 0)
 			return new List<Course>();
 
 		var currentFeatures = MapFeatures(currentCourse);
-		var publishedCatalogue = allCourses
-			.Where(course => course.IsPublished)
-			.Select(course => new CourseCandidate(course, MapFeatures(course)))
-			.ToList();
+		var publishedCatalogue = BuildPublishedCatalogue(allCourses);
 		var catalogue = publishedCatalogue
-			.Where(item => item.Features.Id != currentCourse.CourseId)
+			.Where(item => !excludedCourseIds.Contains(item.Features.Id))
 			.ToList();
 
 		if (catalogue.Count == 0)
 			return new List<Course>();
 
-		// Popularity must be normalized against the complete catalogue.
-		var maxReviewCount = Math.Max(
-			1,
-			publishedCatalogue.Max(item => item.Features.ReviewCount));
-		var maxStudentCount = Math.Max(
-			1,
-			publishedCatalogue.Max(item => item.Features.StudentCount));
+		var popularityContext = CreatePopularityContext(publishedCatalogue);
 
-		// Stage 1: cheap matching reduces the catalogue to at most 30 candidates.
+		// Giai đoạn 1 - Retrieval: giữ tối đa 30 ứng viên liên quan.
 		var candidates = RetrieveCandidates(currentFeatures, catalogue);
 		var now = DateTime.UtcNow;
 
-		// Stage 2: full weighted scoring is only applied to retrieved candidates.
+		// Giai đoạn 2 - Ranking: tính đầy đủ các thành phần trọng số.
 		return candidates
 			.Select(candidate => new RankedCourse(
 				candidate.Course,
 				CalculateScore(
 					currentFeatures,
 					candidate.Features,
-					maxReviewCount,
-					maxStudentCount,
+					popularityContext,
 					now)))
 			.OrderByDescending(item => item.Score.Total)
 			.ThenByDescending(item => item.Course.AverageRating)
@@ -83,22 +120,21 @@ public sealed class RecommendationService : IRecommendationService
 		CourseRecommendationFeatures currentCourse,
 		List<CourseCandidate> catalogue)
 	{
-		var currentTitleTokens = Tokenize(currentCourse.Title);
-
 		var candidates = catalogue
 			.Select(candidate =>
 			{
-				var candidateTokens = Tokenize(candidate.Features.Title);
-				var sharedKeywordCount = currentTitleTokens.Intersect(candidateTokens).Count();
+				var titleSimilarity = CalculateDiceCoefficient(
+					currentCourse.Title,
+					candidate.Features.Title);
 				var isSameCategory = currentCourse.CategoryId.HasValue &&
 					candidate.Features.CategoryId == currentCourse.CategoryId;
 
-				return new RetrievalCandidate(candidate, isSameCategory, sharedKeywordCount);
+				return new RetrievalCandidate(candidate, isSameCategory, titleSimilarity);
 			})
-			// Retrieval rule: same category OR a shared title keyword.
-			.Where(item => item.IsSameCategory || item.SharedKeywordCount > 0)
+			// Retrieval: cùng danh mục hoặc Dice Similarity lớn hơn 0.
+			.Where(item => item.IsSameCategory || item.TitleSimilarity > 0)
 			.OrderByDescending(item => item.IsSameCategory)
-			.ThenByDescending(item => item.SharedKeywordCount)
+			.ThenByDescending(item => item.TitleSimilarity)
 			.ThenByDescending(item => item.Candidate.Features.ReviewCount)
 			.ThenByDescending(item => item.Candidate.Features.StudentCount)
 			.Take(CandidatePoolSize)
@@ -111,8 +147,7 @@ public sealed class RecommendationService : IRecommendationService
 	private static RecommendationScore CalculateScore(
 		CourseRecommendationFeatures currentCourse,
 		CourseRecommendationFeatures candidate,
-		int maxReviewCount,
-		int maxStudentCount,
+		PopularityContext popularityContext,
 		DateTime now)
 	{
 		// Same category: +100 points.
@@ -136,9 +171,7 @@ public sealed class RecommendationService : IRecommendationService
 		var ratingScore = normalizedRating * RatingWeight;
 
 		// Popularity: average of normalized reviews and students, up to 5 points.
-		var reviewRatio = Math.Clamp((double)candidate.ReviewCount / maxReviewCount, 0, 1);
-		var studentRatio = Math.Clamp((double)candidate.StudentCount / maxStudentCount, 0, 1);
-		var popularityScore = ((reviewRatio + studentRatio) / 2) * PopularityWeight;
+		var popularityScore = CalculatePopularityScore(candidate, popularityContext);
 
 		// Freshness: full 6 points for the first 30 days, then decreases
 		// linearly until it reaches zero at 365 days.
@@ -157,6 +190,65 @@ public sealed class RecommendationService : IRecommendationService
 			ratingScore,
 			popularityScore,
 			freshnessScore);
+	}
+
+	private static List<Course> GetMostPopularCourses(
+		List<Course> allCourses,
+		HashSet<int> excludedCourseIds,
+		int limit)
+	{
+		var publishedCatalogue = BuildPublishedCatalogue(allCourses);
+
+		if (publishedCatalogue.Count == 0)
+			return new List<Course>();
+
+		var popularityContext = CreatePopularityContext(publishedCatalogue);
+
+		return publishedCatalogue
+			.Where(item => !excludedCourseIds.Contains(item.Features.Id))
+			.OrderByDescending(item =>
+				CalculatePopularityScore(item.Features, popularityContext))
+			.ThenByDescending(item => item.Features.Rating)
+			.ThenByDescending(item => item.Features.CreatedDate)
+			.Take(limit)
+			.Select(item => item.Course)
+			.ToList();
+	}
+
+	private static List<CourseCandidate> BuildPublishedCatalogue(List<Course> allCourses)
+	{
+		return allCourses
+			.Where(course => course.IsPublished)
+			.Select(course => new CourseCandidate(course, MapFeatures(course)))
+			.ToList();
+	}
+
+	private static PopularityContext CreatePopularityContext(
+		List<CourseCandidate> publishedCatalogue)
+	{
+		return new PopularityContext(
+			MaxReviewCount: Math.Max(
+				1,
+				publishedCatalogue.Max(item => item.Features.ReviewCount)),
+			MaxStudentCount: Math.Max(
+				1,
+				publishedCatalogue.Max(item => item.Features.StudentCount)));
+	}
+
+	private static double CalculatePopularityScore(
+		CourseRecommendationFeatures course,
+		PopularityContext context)
+	{
+		var reviewRatio = Math.Clamp(
+			(double)course.ReviewCount / context.MaxReviewCount,
+			0,
+			1);
+		var studentRatio = Math.Clamp(
+			(double)course.StudentCount / context.MaxStudentCount,
+			0,
+			1);
+
+		return ((reviewRatio + studentRatio) / 2) * PopularityWeight;
 	}
 
 	private static double CalculateDiceCoefficient(string firstTitle, string secondTitle)
@@ -197,7 +289,12 @@ public sealed class RecommendationService : IRecommendationService
 		foreach (var character in decomposed)
 		{
 			if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
-				output.Append(character == 'đ' ? 'd' : character == 'Đ' ? 'D' : character);
+				output.Append(
+					character == '\u0111'
+						? 'd'
+						: character == '\u0110'
+							? 'D'
+							: character);
 		}
 
 		return output.ToString().Normalize(NormalizationForm.FormC);
@@ -223,9 +320,13 @@ public sealed class RecommendationService : IRecommendationService
 	private sealed record RetrievalCandidate(
 		CourseCandidate Candidate,
 		bool IsSameCategory,
-		int SharedKeywordCount);
+		double TitleSimilarity);
 
 	private sealed record RankedCourse(Course Course, RecommendationScore Score);
+
+	private sealed record PopularityContext(
+		int MaxReviewCount,
+		int MaxStudentCount);
 
 	private sealed record RecommendationScore(
 		double Category,

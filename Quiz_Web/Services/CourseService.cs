@@ -1016,6 +1016,126 @@ namespace Quiz_Web.Services
 			}
 		}
 
+		public List<Course> GetNextCoursesToLearn(int userId, int count = 10)
+		{
+			try
+			{
+				if (userId <= 0 || count <= 0)
+					return new List<Course>();
+
+				// Bộ lọc loại trừ gồm khóa đã thanh toán và mọi khóa đã học.
+				var purchasedCourseIds = _context.CoursePurchases
+					.AsNoTracking()
+					.Where(purchase =>
+						purchase.BuyerId == userId &&
+						purchase.Status == "Paid")
+					.Select(purchase => purchase.CourseId)
+					.ToList();
+
+				var studiedCourseIds = _context.CourseProgresses
+					.AsNoTracking()
+					.Where(progress => progress.UserId == userId)
+					.Select(progress => progress.CourseId)
+					.Distinct()
+					.ToList();
+
+				var userEnrolledCourseIds = purchasedCourseIds
+					.Concat(studiedCourseIds)
+					.Distinct()
+					.ToList();
+
+				// CourseProgress được lưu theo từng nội dung. Một khóa hoàn thành
+				// khi tất cả LessonContent đều có bản ghi IsCompleted = true.
+				var completedProgress = _context.CourseProgresses
+					.AsNoTracking()
+					.Where(progress =>
+						progress.UserId == userId &&
+						progress.IsCompleted)
+					.Select(progress => new
+					{
+						progress.CourseId,
+						progress.ContentId,
+						progress.CompletionAt
+					})
+					.ToList();
+
+				Course? recentlyCompletedCourse = null;
+
+				if (completedProgress.Count > 0)
+				{
+					var progressByCourse = completedProgress
+						.GroupBy(progress => progress.CourseId)
+						.ToDictionary(
+							group => group.Key,
+							group => new
+							{
+								CompletedContentCount = group
+									.Select(progress => progress.ContentId)
+									.Distinct()
+									.Count(),
+								LastCompletionAt = group.Max(progress => progress.CompletionAt)
+							});
+
+					var candidateCourseIds = progressByCourse.Keys.ToList();
+					var contentCounts = _context.Courses
+						.AsNoTracking()
+						.Where(course => candidateCourseIds.Contains(course.CourseId))
+						.Select(course => new
+						{
+							course.CourseId,
+							TotalContentCount = course.CourseChapters
+								.SelectMany(chapter => chapter.Lessons)
+								.SelectMany(lesson => lesson.LessonContents)
+								.Count()
+						})
+						.ToList();
+
+					var recentlyCompletedCourseId = contentCounts
+						.Where(item =>
+							item.TotalContentCount > 0 &&
+							progressByCourse[item.CourseId].CompletedContentCount >=
+								item.TotalContentCount)
+						.OrderByDescending(item =>
+							progressByCourse[item.CourseId].LastCompletionAt ??
+							DateTime.MinValue)
+						.Select(item => (int?)item.CourseId)
+						.FirstOrDefault();
+
+					if (recentlyCompletedCourseId.HasValue)
+					{
+						recentlyCompletedCourse = _context.Courses
+							.AsNoTracking()
+							.FirstOrDefault(course =>
+								course.CourseId == recentlyCompletedCourseId.Value);
+					}
+				}
+
+				var allPublishedCourses = _context.Courses
+					.AsNoTracking()
+					.Include(course => course.Owner)
+					.Include(course => course.Category)
+					.Include(course => course.CoursePurchases)
+					.AsSplitQuery()
+					.Where(course => course.IsPublished)
+					.ToList();
+
+				return _recommendationService.GetNextCoursesToLearn(
+					userId,
+					recentlyCompletedCourse,
+					userEnrolledCourseIds,
+					allPublishedCourses,
+					count);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(
+					ex,
+					"Error getting next courses to learn for user {UserId}",
+					userId);
+				return new List<Course>();
+			}
+		}
+
 		public List<Course> GetFilteredAndSortedCourses(
 			string? searchKeyword = null,
 			string? categorySlug = null,
