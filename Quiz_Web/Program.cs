@@ -59,6 +59,7 @@ builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+builder.Services.AddSingleton<IStorageService, GoogleCloudStorageService>();
 
 // Register background service for course recommendations
 builder.Services.AddHostedService<CourseRecommendationService>();

@@ -430,3 +430,7 @@ appsettings.Test.json
 /FLASHCARD_COMPLETION_FEATURE.md
 /FLASHCARD_FILE_STRUCTURE.md
 /FLASHCARD_SERVICE_REFACTORING.md
+
+# Google Cloud Storage credentials
+google-creds.json
+*google-creds*.json
