@@ -37,7 +37,7 @@ namespace Quiz_Web.Services
         //            Description = viewModel.Description,
         //            Visibility = viewModel.Visibility,
         //            CoverUrl = viewModel.CoverUrl,
-        //            CreatedAt = DateTime.UtcNow,
+        //            CreatedAt = DateTimeHelper.Now,
         //            IsDeleted = false
         //        };
 
@@ -61,7 +61,7 @@ namespace Quiz_Web.Services
         //                SlideType = slideVM.SlideType,
         //                StemText = slideVM.StemText,
         //                Points = slideVM.Points,
-        //                CreatedAt = DateTime.UtcNow
+        //                CreatedAt = DateTimeHelper.Now
         //            };
 
         //            _context.LessonSlides.Add(newSlide);

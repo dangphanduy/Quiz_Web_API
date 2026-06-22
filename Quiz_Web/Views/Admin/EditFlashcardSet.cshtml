@@ -1,0 +1,85 @@
+@model Quiz_Web.Models.Entities.FlashcardSet
+@{
+    ViewData["Title"] = "Chỉnh sửa bộ Flashcard";
+    Layout = "_LayoutAdmin";
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Chỉnh sửa bộ Flashcard: @Model.Title</h2>
+    <a href="@Url.Action("FlashcardSets")" class="btn btn-secondary">Quay lại danh sách</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" asp-action="EditFlashcardSet" enctype="multipart/form-data">
+            <input type="hidden" asp-for="SetId" />
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label">Tiêu đề *</label>
+                        <input asp-for="Title" class="form-control" required maxlength="200" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="Language" class="form-label">Ngôn ngữ</label>
+                        <input asp-for="Language" class="form-control" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label">Mô tả</label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="TagsText" class="form-label">Tags (cách nhau bởi dấu phẩy)</label>
+                        <input asp-for="TagsText" class="form-control" placeholder="học tập, từ vựng, lịch sử..." />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="Visibility" class="form-label">Hiển thị</label>
+                        <select asp-for="Visibility" class="form-control">
+                            <option value="Public" selected="@(Model.Visibility == "Public")">Công khai</option>
+                            <option value="Private" selected="@(Model.Visibility == "Private")">Riêng tư</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Ảnh bìa hiện tại</label>
+                <div class="mb-2">
+                    @if (!string.IsNullOrEmpty(Model.CoverUrl))
+                    {
+                        <img src="@Model.CoverUrl" alt="@Model.Title" class="img-thumbnail" style="max-width: 200px; max-height: 150px; object-fit: cover;" />
+                    }
+                    else
+                    {
+                        <span class="text-muted">Chưa có ảnh bìa</span>
+                    }
+                </div>
+                <label class="form-label">Thay đổi ảnh bìa</label>
+                <input type="file" name="coverFile" class="form-control" accept="image/*" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Cập nhật bộ Flashcard</button>
+                <a href="@Url.Action("FlashcardSets")" class="btn btn-secondary">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>

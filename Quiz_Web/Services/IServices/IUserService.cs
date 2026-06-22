@@ -1,4 +1,4 @@
-﻿using Quiz_Web.Models.Entities;
+using Quiz_Web.Models.Entities;
 
 namespace Quiz_Web.Services.IServices
 {
@@ -13,6 +13,8 @@ namespace Quiz_Web.Services.IServices
 		//send mail
 		User? GetUserByEmail(string email);
 		bool GeneratePasswordResetToken(string email, out string token);
+		bool GenerateForgotPasswordCode(string email, out string code);
+		bool VerifyResetCode(string email, string code, out string secureToken);
 		bool ValidatePasswordResetToken(string token);
 		bool ResetPassword(string token, string newPassword);
 

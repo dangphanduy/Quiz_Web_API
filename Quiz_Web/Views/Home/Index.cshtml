@@ -1,8 +1,12 @@
 @model IEnumerable<Quiz_Web.Models.Entities.CourseCategory>
+@using System.Security.Claims
+@inject Quiz_Web.Services.IServices.ICourseService CourseService
 
 @{
     ViewData["Title"] = "trang chu";
     var fullName = User.Identity?.Name ?? "Người dùng";
+    var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var currentUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : 0;
     var recommendedCourses = ViewBag.RecommendedCourses as List<Quiz_Web.Models.Entities.Course> ?? new List<Quiz_Web.Models.Entities.Course>();
     var topRatedCourses = ViewBag.TopRatedCourses as List<Quiz_Web.Models.Entities.Course> ?? new List<Quiz_Web.Models.Entities.Course>();
     var publicFlashcardSets = ViewBag.PublicFlashcardSets as List<Quiz_Web.Models.Entities.FlashcardSet> ?? new List<Quiz_Web.Models.Entities.FlashcardSet>();

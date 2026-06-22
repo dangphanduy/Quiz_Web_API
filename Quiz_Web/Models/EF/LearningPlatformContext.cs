@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.Entities;
@@ -83,6 +83,10 @@ public partial class LearningPlatformContext : DbContext
 
     public virtual DbSet<ShoppingCart> ShoppingCarts { get; set; }
 
+    public virtual DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+
+    public virtual DbSet<UserSubscription> UserSubscriptions { get; set; }
+
     public virtual DbSet<Tag> Tags { get; set; }
 
     public virtual DbSet<Test> Tests { get; set; }
@@ -96,6 +100,10 @@ public partial class LearningPlatformContext : DbContext
     public virtual DbSet<UserProfile> UserProfiles { get; set; }
 
     public virtual DbSet<UserSetting> UserSettings { get; set; }
+
+    public virtual DbSet<ChatConversation> ChatConversations { get; set; }
+
+    public virtual DbSet<ChatMessage> ChatMessages { get; set; }
 
 //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -291,6 +299,9 @@ public partial class LearningPlatformContext : DbContext
                 .HasMaxLength(20)
                 .IsUnicode(false);
 
+            entity.HasIndex(e => new { e.BuyerId, e.CourseId, e.Status })
+                .HasDatabaseName("IX_CoursePurchases_AccessCheck");
+
             entity.HasOne(d => d.Buyer).WithMany(p => p.CoursePurchases)
                 .HasForeignKey(d => d.BuyerId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -457,6 +468,7 @@ public partial class LearningPlatformContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.VideoUrl).HasMaxLength(500);
+            entity.Property(e => e.DocumentUrl).HasMaxLength(500);
 
             entity.HasOne(d => d.Lesson).WithMany(p => p.LessonContents)
                 .HasForeignKey(d => d.LessonId)
@@ -537,13 +549,61 @@ public partial class LearningPlatformContext : DbContext
                 .HasMaxLength(40)
                 .IsUnicode(false);
             entity.Property(e => e.ProviderRef).HasMaxLength(200);
+            entity.Property(e => e.Purpose)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue(PaymentPurposes.Course);
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+            entity.Property(e => e.TransactionId).HasMaxLength(200);
+
+            entity.HasIndex(e => e.ProviderRef)
+                .HasDatabaseName("IX_Payments_ProviderRef");
 
             entity.HasOne(d => d.Order).WithMany(p => p.Payments)
                 .HasForeignKey(d => d.OrderId)
                 .HasConstraintName("FK_Payments_Order");
+
+            entity.HasOne(d => d.SubscriptionPlan).WithMany(p => p.Payments)
+                .HasForeignKey(d => d.SubscriptionPlanId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_Payments_SubscriptionPlan");
+        });
+
+        modelBuilder.Entity<SubscriptionPlan>(entity =>
+        {
+            entity.ToTable("SubscriptionPlans");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("PlanId");
+            entity.Property(e => e.DurationInMonths).HasColumnName("DurationMonths");
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Price).HasColumnType("decimal(12, 2)");
+        });
+
+        modelBuilder.Entity<UserSubscription>(entity =>
+        {
+            entity.ToTable("UserSubscriptions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("SubscriptionId");
+            entity.Property(e => e.StartDate).HasColumnName("SubscribedAt");
+            entity.Property(e => e.EndDate).HasColumnName("ExpiresAt");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+
+            entity.HasIndex(e => new { e.UserId, e.Status, e.EndDate })
+                .HasDatabaseName("IX_UserSubscriptions_AccessCheck");
+
+            entity.HasOne(e => e.User).WithMany(e => e.UserSubscriptions)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_UserSubscriptions_User");
+
+            entity.HasOne(e => e.Plan).WithMany(e => e.UserSubscriptions)
+                .HasForeignKey(e => e.PlanId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_UserSubscriptions_Plan");
         });
 
         modelBuilder.Entity<Question>(entity =>
@@ -802,6 +862,57 @@ public partial class LearningPlatformContext : DbContext
                 .HasForeignKey<UserSetting>(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_UserSettings_User");
+        });
+
+        modelBuilder.Entity<ChatConversation>(entity =>
+        {
+            entity.HasKey(e => e.ConversationId).HasName("PK_ChatConversations");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.Student)
+                .WithMany()
+                .HasForeignKey(d => d.StudentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_ChatConversations_Student");
+
+            entity.HasOne(d => d.Instructor)
+                .WithMany()
+                .HasForeignKey(d => d.InstructorId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_ChatConversations_Instructor");
+
+            entity.HasOne(d => d.Course)
+                .WithMany()
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ChatConversations_Course");
+        });
+
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.HasKey(e => e.MessageId).HasName("PK_ChatMessages");
+
+            entity.Property(e => e.MessageType)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue("Text");
+
+            entity.Property(e => e.FileName).HasMaxLength(255);
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+
+            entity.HasOne(d => d.Conversation)
+                .WithMany(p => p.Messages)
+                .HasForeignKey(d => d.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ChatMessages_Conversation");
+
+            entity.HasOne(d => d.Sender)
+                .WithMany()
+                .HasForeignKey(d => d.SenderId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_ChatMessages_Sender");
         });
 
         OnModelCreatingPartial(modelBuilder);

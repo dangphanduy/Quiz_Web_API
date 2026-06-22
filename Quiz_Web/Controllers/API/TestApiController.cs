@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -20,8 +20,49 @@ namespace Quiz_Web.Controllers.API
             _logger = logger;
         }
 
+        // GET: api/TestApi/completed
+        [HttpGet("completed")]
+        public async Task<IActionResult> GetCompletedTests()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized(new { success = false, message = "Người dùng chưa xác thực" });
+                }
+
+                var completedTests = await _context.TestAttempts
+                    .Include(ta => ta.Test)
+                        .ThenInclude(t => t.Owner)
+                    .Where(ta => ta.UserId == userId && (ta.Status == "completed" || ta.Status == "Graded"))
+                    .OrderByDescending(ta => ta.SubmittedAt)
+                    .Select(ta => new
+                    {
+                        attemptId = ta.AttemptId,
+                        testId = ta.TestId,
+                        testTitle = ta.Test.Title,
+                        startedAt = ta.StartedAt,
+                        submittedAt = ta.SubmittedAt,
+                        score = ta.Score,
+                        maxScore = ta.MaxScore,
+                        timeSpentSec = ta.TimeSpentSec,
+                        status = ta.Status,
+                        teacherName = ta.Test.Owner != null ? ta.Test.Owner.FullName : "Giảng viên"
+                    })
+                    .ToListAsync();
+
+                return Ok(new { success = true, attempts = completedTests });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "API error getting completed tests");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải lịch sử bài kiểm tra" });
+            }
+        }
+
         // GET: api/TestApi/{testId}
-        [HttpGet("{testId}")]
+        [HttpGet("{testId:int}")]
         public async Task<IActionResult> GetTestQuestions(int testId)
         {
             try
@@ -37,12 +78,12 @@ namespace Quiz_Web.Controllers.API
                 }
 
                 // Check if test is open (if OpenAt and CloseAt are set)
-                if (test.OpenAt.HasValue && DateTime.UtcNow < test.OpenAt.Value)
+                if (test.OpenAt.HasValue && DateTimeHelper.Now < test.OpenAt.Value)
                 {
                     return BadRequest(new { success = false, message = "Bài kiểm tra chưa mở" });
                 }
 
-                if (test.CloseAt.HasValue && DateTime.UtcNow > test.CloseAt.Value)
+                if (test.CloseAt.HasValue && DateTimeHelper.Now > test.CloseAt.Value)
                 {
                     return BadRequest(new { success = false, message = "Bài kiểm tra đã đóng" });
                 }
@@ -117,8 +158,8 @@ namespace Quiz_Web.Controllers.API
                 {
                     TestId = request.TestId,
                     UserId = userId,
-                    StartedAt = DateTime.UtcNow.AddSeconds(-request.TimeSpentSec),
-                    SubmittedAt = DateTime.UtcNow,
+                    StartedAt = DateTimeHelper.Now.AddSeconds(-request.TimeSpentSec),
+                    SubmittedAt = DateTimeHelper.Now,
                     Status = "Graded",
                     TimeSpentSec = request.TimeSpentSec,
                     // ✅ FIX: Luôn tính MaxScore từ tổng điểm Questions, không dùng test.MaxScore
@@ -197,7 +238,7 @@ namespace Quiz_Web.Controllers.API
                         IsCorrect = isCorrect,
                         Score = questionScore,
                         AutoGraded = true,
-                        GradedAt = DateTime.UtcNow
+                        GradedAt = DateTimeHelper.Now
                     };
 
                     _context.AttemptAnswers.Add(attemptAnswer);

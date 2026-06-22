@@ -1,4 +1,5 @@
-﻿@{
+@using Quiz_Web.Helper
+@{
     ViewData["Title"] = ViewBag.CurrentLesson?.Title ?? "Xem bài học";
     Layout = "~/Views/Shared/_LayoutLearn.cshtml";
     
@@ -6,12 +7,150 @@
     var currentChapter = ViewBag.CurrentChapter as Quiz_Web.Models.Entities.CourseChapter;
     var currentLesson = ViewBag.CurrentLesson as Quiz_Web.Models.Entities.Lesson;
     var isOwner = (bool)(ViewBag.IsOwner ?? false);
+    Func<string?, string> repairText = value => TextEncodingRepair.Repair(value) ?? string.Empty;
+    ViewData["Title"] = repairText(currentLesson?.Title) is { Length: > 0 } repairedTitle ? repairedTitle : "Xem bài học";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/course/course-learn.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/flashcards/common.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/flashcards/index.css" asp-append-version="true" />
+    <style>
+        /* Certificate Sidebar Container */
+        #certificateSidebarContainer {
+            margin-top: 15px;
+            padding: 10px 15px;
+            background: rgba(164, 53, 240, 0.08);
+            border: 1px dashed rgba(164, 53, 240, 0.4);
+            border-radius: 12px;
+            text-align: center;
+        }
+        #viewCertificateBtn {
+            background: linear-gradient(135deg, #a435f0 0%, #7d12ff 100%);
+            border: none;
+            font-weight: 600;
+            padding: 10px 20px;
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+        #viewCertificateBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(164, 53, 240, 0.4);
+        }
+
+        /* Congratulations Modal */
+        .congrats-modal-content {
+            background: radial-gradient(circle at top, #ffffff 60%, #f4e8ff 100%);
+            border-radius: 20px;
+            border: none;
+            overflow: hidden;
+        }
+        .congrats-header {
+            border-bottom: none;
+            padding-top: 40px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .congrats-icon-wrapper {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #ffbc00 0%, #ff8800 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 45px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(255, 136, 0, 0.3);
+            margin-bottom: 20px;
+            animation: bounceIn 1s ease-out;
+        }
+        .congrats-title {
+            font-size: 28px;
+            font-weight: 850;
+            color: #1c1d1f;
+            margin-bottom: 10px;
+        }
+        .congrats-body {
+            text-align: center;
+            padding: 20px 40px;
+            font-size: 16px;
+            color: #6a6f73;
+        }
+        .congrats-footer {
+            border-top: none;
+            padding-bottom: 40px;
+            justify-content: center;
+            gap: 15px;
+        }
+        .btn-congrats-view {
+            background: #a435f0;
+            color: white;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .btn-congrats-view:hover {
+            background: #8710d8;
+            box-shadow: 0 5px 15px rgba(164, 53, 240, 0.4);
+            transform: translateY(-2px);
+        }
+        .btn-congrats-close {
+            background: #f7f9fa;
+            border: 1px solid #d1d7dc;
+            color: #1c1d1f;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+        .btn-congrats-close:hover {
+            background: #e4e8eb;
+        }
+
+        /* Certificate Modal */
+        .cert-modal-content {
+            border-radius: 16px;
+            border: none;
+        }
+        .cert-image-container {
+            position: relative;
+            background: #f8f9fa;
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #certificateImg {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+            object-fit: contain;
+            display: none;
+        }
+        .cert-spinner {
+            position: absolute;
+            font-size: 18px;
+            color: #a435f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        @@keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            70% { transform: scale(0.9); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
 }
 
 <div class="container-fluid course-player-container">
@@ -42,7 +181,7 @@
 
             <!-- Lesson Title & Navigation -->
             <div class="lesson-header">
-                <h3 class="lesson-title">@currentLesson?.Title</h3>
+                <h3 class="lesson-title">@repairText(currentLesson?.Title)</h3>
                 <div class="lesson-navigation">
                     <button class="btn btn-outline-primary" id="prevLessonBtn" title="Bài học trước">
                         <i class="fas fa-chevron-left me-1"></i> Trước
@@ -64,7 +203,7 @@
                     <div class="contents-list">
                         @foreach (var content in currentLesson.LessonContents.OrderBy(c => c.OrderIndex))
                         {
-                            @if (content.ContentType == "Theory" && !string.IsNullOrEmpty(content.Body))
+                            @if (content.ContentType == "Theory" && (!string.IsNullOrEmpty(content.Body) || !string.IsNullOrEmpty(content.DocumentUrl)))
                             {
                                 <div class="content-item theory-item" data-content-id="@content.ContentId">
                                     <div class="content-header">
@@ -72,13 +211,37 @@
                                             <i class="fas fa-book"></i>
                                         </div>
                                         <div class="content-info">
-                                            <h5 class="content-title">@(content.Title ?? "Lý thuyết")</h5>
+                                            <h5 class="content-title">@(repairText(content.Title) is { Length: > 0 } contentTitle ? contentTitle : "Lý thuyết")</h5>
                                             <span class="content-type-badge theory">Lý thuyết</span>
                                         </div>
                                     </div>
-                                    <div class="content-preview ck-content">
-                                        @Html.Raw(content.Body)
-                                    </div>
+                                    @if (!string.IsNullOrEmpty(content.Body))
+                                    {
+                                        <div class="content-preview ck-content">
+                                            @Html.Raw(content.Body)
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(content.DocumentUrl))
+                                    {
+                                        <div class="pdf-viewer-section mt-3">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <span class="fw-semibold text-muted"><i class="fas fa-paperclip me-1"></i> Tài liệu học tập (PDF)</span>
+                                                <a href="@content.DocumentUrl" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm">
+                                                    <i class="fas fa-external-link-alt me-1"></i> Mở trong tab mới
+                                                </a>
+                                            </div>
+                                            <div class="pdf-iframe-container shadow-sm rounded overflow-hidden border mb-3" style="height: 600px; width: 100%;">
+                                                <iframe src="@content.DocumentUrl" style="width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+                                            </div>
+                                            <div class="pdf-completion-wrapper text-center mb-2">
+                                                <button class="btn btn-primary rounded-pill px-4 py-2 mark-pdf-read-btn" 
+                                                        data-content-id="@content.ContentId"
+                                                        onclick="markPdfAsRead(this, @content.ContentId)">
+                                                    <i class="fas fa-check me-2"></i>Tôi đã đọc xong tài liệu
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
                                 </div>
                             }
                             else if (content.ContentType == "FlashcardSet" && content.RefId.HasValue)
@@ -89,7 +252,7 @@
                                             <i class="fas fa-layer-group"></i>
                                         </div>
                                         <div class="content-info">
-                                            <h5 class="content-title">@(content.Title ?? "Bộ flashcard")</h5>
+                                            <h5 class="content-title">@(repairText(content.Title) is { Length: > 0 } contentTitle ? contentTitle : "Bộ flashcard")</h5>
                                             <span class="content-type-badge theory">Flashcard</span>
                                         </div>
                                     </div>
@@ -186,7 +349,7 @@
                                             <i class="fas fa-clipboard-check"></i>
                                         </div>
                                         <div class="content-info">
-                                            <h5 class="content-title">@(content.Title ?? "Bài kiểm tra")</h5>
+                                            <h5 class="content-title">@(repairText(content.Title) is { Length: > 0 } contentTitle ? contentTitle : "Bài kiểm tra")</h5>
                                             <span class="content-type-badge theory">Kiểm tra</span>
                                         </div>
                                     </div>
@@ -370,6 +533,11 @@
                         </div>
                     </div>
                 </div>
+                <div class="certificate-container mt-3" id="certificateSidebarContainer" style="display: none;">
+                    <button class="btn btn-primary w-100 rounded-pill shadow-sm" id="viewCertificateBtn">
+                        <i class="fas fa-award me-2"></i>Xem chứng chỉ
+                    </button>
+                </div>
             </div>
 
             <div class="sidebar-content">
@@ -391,7 +559,7 @@
                                         <div class="chapter-info">
                                             <div class="chapter-title">
                                                 <i class="fas fa-folder-open me-2"></i>
-                                                @chapter.Title
+                                                @repairText(chapter.Title)
                                             </div>
                                             <div class="chapter-stats">
                                                 <small class="text-muted">@chapterLessons.Count bài học</small>
@@ -426,7 +594,7 @@
                                                             }
                                                         </div>
                                                         <div class="lesson-info-item">
-                                                            <div class="lesson-title-item">@lesson.Title</div>
+                                                            <div class="lesson-title-item">@repairText(lesson.Title)</div>
                                                             <div class="lesson-meta">
                                                                 @if (hasVideoInLesson)
                                                                 {
@@ -464,10 +632,79 @@
     </div>
 </div>
 
+<!-- Congratulations Modal -->
+<div class="modal fade" id="congratsModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content congrats-modal-content shadow-lg">
+            <div class="modal-header congrats-header">
+                <div class="congrats-icon-wrapper">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <h3 class="modal-title congrats-title">Chúc Mừng Bạn!</h3>
+            </div>
+            <div class="modal-body congrats-body">
+                <p>Bạn đã hoàn thành 100% nội dung khóa học <strong><span id="congratsCourseTitle">@course?.Title</span></strong>.</p>
+                <p>Chứng chỉ hoàn thành khóa học đã được gửi về email của bạn. Bạn cũng có thể xem và tải về chứng chỉ ngay tại đây.</p>
+            </div>
+            <div class="modal-footer congrats-footer">
+                <button type="button" class="btn btn-congrats-close" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-congrats-view" id="congratsViewCertBtn">
+                    <i class="fas fa-award me-2"></i>Xem chứng chỉ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Certificate Viewer Modal -->
+<div class="modal fade" id="certificateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content cert-modal-content shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h4 class="modal-title fw-bold text-dark"><i class="fas fa-award text-warning me-2"></i>Chứng chỉ hoàn thành</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="cert-image-container border mb-3">
+                    <div class="cert-spinner" id="certSpinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải chứng chỉ...</span>
+                        </div>
+                        <span class="mt-2">Đang khởi tạo chứng chỉ của bạn...</span>
+                    </div>
+                    <img id="certificateImg" src="" alt="Chứng chỉ hoàn thành khóa học" />
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                <a id="downloadCertBtn" href="" class="btn btn-primary rounded-pill px-4 shadow" download>
+                    <i class="fas fa-download me-2"></i>Tải về chứng chỉ
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <!-- Video.js for better video player -->
     <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
     <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
     
     <script src="~/js/course/course-learn.js" asp-append-version="true"></script>
+
+    <script>
+        window.isLearningPage = true;
+        @if (currentLesson != null)
+        {
+            <text>
+            window.currentLessonId = @currentLesson.LessonId;
+            </text>
+            if (currentLesson.LessonContents.Any(c => c.ContentType == "Theory"))
+            {
+                <text>
+                window.hasTheoryContent = true;
+                </text>
+            }
+        }
+    </script>
 }

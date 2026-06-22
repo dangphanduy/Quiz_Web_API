@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 
 namespace Quiz_Web.Controllers
 {
@@ -33,7 +33,7 @@ namespace Quiz_Web.Controllers
                     return Json(new { uploaded = false, error = new { message = "Unsupported file type." } });
                 }
 
-                var folder = $"uploads/ck/{DateTime.UtcNow:yyyy/MM}";
+                var folder = $"uploads/ck/{DateTimeHelper.Now:yyyy/MM}";
                 var physical = Path.Combine(_env.WebRootPath, folder);
                 Directory.CreateDirectory(physical);
 

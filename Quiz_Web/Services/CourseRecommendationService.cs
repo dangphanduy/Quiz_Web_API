@@ -1,4 +1,4 @@
-using Quiz_Web.Models.EF;
+﻿using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -46,7 +46,7 @@ namespace Quiz_Web.Services
                 var context = scope.ServiceProvider.GetRequiredService<LearningPlatformContext>();
 
                 // Get all users who have selected interests
-                var usersWithInterests = await context.UserInterests
+                var usersWithInterests = await context.Set<UserInterest>()
                     .Select(ui => ui.UserId)
                     .Distinct()
                     .ToListAsync();
@@ -71,7 +71,7 @@ namespace Quiz_Web.Services
             try
             {
                 // Get user's interested categories
-                var userCategoryIds = await context.UserInterests
+                var userCategoryIds = await context.Set<UserInterest>()
                     .Where(ui => ui.UserId == userId)
                     .Select(ui => ui.CategoryId)
                     .ToListAsync();
@@ -82,17 +82,17 @@ namespace Quiz_Web.Services
                 }
 
                 // Get top 3 recommended courses
-                var recommendations = await context.Courses
+                var recommendations = await context.Set<Course>()
                     .Where(c => c.CategoryId.HasValue && 
                                 userCategoryIds.Contains(c.CategoryId.Value) &&
                                 c.IsPublished)
                     // Exclude courses user already purchased
-                    .Where(c => !context.CoursePurchases
+                    .Where(c => !context.Set<CoursePurchase>()
                         .Any(cp => cp.BuyerId == userId && 
                                    cp.CourseId == c.CourseId && 
                                    cp.Status == "Paid"))
                     // Exclude courses already recommended
-                    .Where(c => !context.Notifications
+                    .Where(c => !context.Set<Notification>()
                         .Any(n => n.UserId == userId &&
                                   n.Type == "CourseRecommendation" &&
                                   n.Data != null &&
@@ -110,14 +110,14 @@ namespace Quiz_Web.Services
                     {
                         UserId = userId,
                         Type = "CourseRecommendation",
-                        Title = "?? xu?t d�nh ri�ng cho b?n!",
-                        Body = $"D?a tr�n s? th�ch \"{course.Category?.Name}\", ch�ng t�i ngh? b?n s? th�ch kh�a h?c \"{course.Title}\".",
+                        Title = "Đề xuất dành riêng cho bạn!",
+                        Body = $"Dựa trên sở thích \"{course.Category?.Name}\", chúng tôi nghĩ bạn sẽ thích khóa học \"{course.Title}\".",
                         Data = JsonSerializer.Serialize(new { CourseId = course.CourseId }),
                         IsRead = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.Now
                     };
 
-                    context.Notifications.Add(notification);
+                    context.Set<Notification>().Add(notification);
                 }
 
                 await context.SaveChangesAsync();

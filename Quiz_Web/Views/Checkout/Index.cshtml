@@ -1,115 +1,148 @@
 @model Quiz_Web.Models.ViewModels.CheckoutViewModel
 @{
-    ViewData["Title"] = "Thanh toán";
+    ViewData["Title"] = "Giỏ hàng";
     Layout = "_Layout";
+    var culture = new System.Globalization.CultureInfo("vi-VN");
 }
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    <h4><i class="fas fa-shopping-cart me-2"></i>Giỏ hàng của bạn</h4>
-                </div>
-                <div class="card-body">
-                    @if (Model.HasItems)
-                    {
+@section Styles {
+    <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
+}
+
+<div class="checkout-page">
+    <div class="checkout-shell">
+        <div class="checkout-heading">
+            <div>
+                <p class="checkout-eyebrow">Giỏ hàng</p>
+                <h1>Chọn khóa học muốn thanh toán</h1>
+            </div>
+            @if (Model.HasItems)
+            {
+                <span class="checkout-count">@Model.CartItems.Count khóa học trong giỏ</span>
+            }
+        </div>
+
+        @if (Model.HasItems)
+        {
+            <div class="checkout-layout">
+                <section class="cart-panel">
+                    <div class="cart-panel-header">
+                        <label class="select-all-control">
+                            <input type="checkbox" id="selectAllCourses" checked>
+                            <span>Chọn tất cả</span>
+                        </label>
+                        <span class="selected-summary">
+                            Đã chọn <strong id="selectedCount">@Model.CartItems.Count</strong>/<span>@Model.CartItems.Count</span>
+                        </span>
+                    </div>
+
+                    <div class="cart-course-list">
                         @foreach (var item in Model.CartItems)
                         {
-                            <div class="row mb-3 pb-3 border-bottom">
-                                <div class="col-md-3">
-                                    @if (!string.IsNullOrEmpty(item.CoverUrl))
+                            <article class="cart-course-card selected" data-course-card data-course-id="@item.CourseId">
+                                <div class="course-select">
+                                    <input class="course-select-input"
+                                           type="checkbox"
+                                           value="@item.CourseId"
+                                           data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                           checked
+                                           aria-label="Chọn @item.Title">
+                                </div>
+
+                                <div class="course-thumb">
+                                    @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
                                     {
-                                        <img src="@item.CoverUrl" alt="@item.Title" class="img-fluid rounded" style="max-height: 120px; object-fit: cover;">
+                                        <img src="@item.CoverUrl" alt="@item.Title">
                                     }
                                     else
                                     {
-                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 120px;">
-                                            <i class="fas fa-book fa-2x text-muted"></i>
+                                        <div class="course-thumb-placeholder">
+                                            <i class="fas fa-book"></i>
                                         </div>
                                     }
                                 </div>
-                                <div class="col-md-6">
-                                    <h5 class="mb-2">@item.Title</h5>
-                                    <p class="text-muted mb-1">
-                                        <i class="fas fa-user me-1"></i>@item.InstructorName
-                                    </p>
-                                    <small class="text-muted">
-                                        Thêm vào giỏ: @item.AddedAt.ToString("dd/MM/yyyy HH:mm")
-                                    </small>
+
+                                <div class="course-main">
+                                    <h2>@item.Title</h2>
+                                    <div class="course-meta">
+                                        <span><i class="fas fa-user"></i>@item.InstructorName</span>
+                                        <span><i class="fas fa-clock"></i>Thêm vào giỏ: @item.AddedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
                                 </div>
-                                <div class="col-md-3 text-end">
-                                    <h5 class="text-primary mb-2">@item.Price.ToString("N0") VNĐ</h5>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFromCart(@item.CourseId)">
-                                        <i class="fas fa-trash"></i> Xóa
+
+                                <div class="course-actions">
+                                    <strong>@item.Price.ToString("N0", culture) VNĐ</strong>
+                                    <button type="button" class="remove-course-btn" onclick="removeFromCart(@item.CourseId)">
+                                        <i class="fas fa-trash"></i>
+                                        <span>Xóa</span>
                                     </button>
                                 </div>
-                            </div>
+                            </article>
                         }
-                    }
-                    else
-                    {
-                        <div class="text-center py-5">
-                            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
-                            <h5>Giỏ hàng trống</h5>
-                            <p class="text-muted">Hãy thêm khóa học vào giỏ hàng để tiếp tục</p>
-                            <a href="@Url.Action("Index", "Home")" class="btn btn-primary">
-                                <i class="fas fa-search me-2"></i>Khám phá khóa học
-                            </a>
+                    </div>
+                </section>
+
+                <aside class="summary-panel">
+                    <div class="summary-card">
+                        <div class="summary-title">
+                            <i class="fas fa-calculator"></i>
+                            <h2>Tổng kết</h2>
                         </div>
-                    }
-                </div>
+
+                        <div class="summary-lines">
+                            <div>
+                                <span>Khóa học đã chọn</span>
+                                <strong id="summarySelectedCount">@Model.CartItems.Count</strong>
+                            </div>
+                            <div>
+                                <span>Tạm tính</span>
+                                <strong id="summarySubtotal">@Model.Total.ToString("N0", culture) VNĐ</strong>
+                            </div>
+                        </div>
+
+                        <div class="summary-total">
+                            <span>Tổng cộng</span>
+                            <strong id="summaryTotal">@Model.Total.ToString("N0", culture) VNĐ</strong>
+                        </div>
+
+                        <div class="selection-warning d-none" id="selectionWarning">
+                            <i class="fas fa-circle-info"></i>
+                            Chọn ít nhất một khóa học để thanh toán.
+                        </div>
+
+                        @await Html.PartialAsync("_PaymentButtons")
+                    </div>
+                </aside>
             </div>
-        </div>
-        
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-calculator me-2"></i>Tổng kết</h5>
-                </div>
-                <div class="card-body">
-                    @if (Model.HasItems)
-                    {
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Số khóa học:</span>
-                            <span>@Model.CartItems.Count</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-3">
-                            <span>Tạm tính:</span>
-                            <span>@Model.Total.ToString("N0") VNĐ</span>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between mb-3">
-                            <strong>Tổng cộng:</strong>
-                            <strong class="text-primary fs-4">@Model.Total.ToString("N0") VNĐ</strong>
-                        </div>
-                        
-                        @Html.Partial("_PaymentButtons")
-                    }
-                    else
-                    {
-                        <p class="text-muted text-center">Không có sản phẩm nào</p>
-                    }
-                </div>
+        }
+        else
+        {
+            <div class="empty-cart">
+                <i class="fas fa-shopping-cart"></i>
+                <h2>Giỏ hàng trống</h2>
+                <p>Hãy thêm khóa học vào giỏ hàng, rồi quay lại đây để chọn khóa muốn thanh toán.</p>
+                <a href="@Url.Action("Index", "Course")" class="btn btn-primary">
+                    <i class="fas fa-search me-2"></i>Khám phá khóa học
+                </a>
             </div>
-        </div>
+        }
     </div>
 </div>
 
 @section Scripts {
-    <script src="~/js/payment.js"></script>
+    <script src="~/js/payment.js" asp-append-version="true"></script>
     <script>
         async function removeFromCart(courseId) {
             try {
                 const response = await fetch(`/api/cart/remove/${courseId}`, {
                     method: 'DELETE',
                     headers: {
-                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                        'Content-Type': 'application/json'
                     }
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     location.reload();
                 } else {

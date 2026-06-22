@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Quiz_Web.Models.Entities;
@@ -18,6 +18,8 @@ public partial class LessonContent
     public string? Body { get; set; }
 
     public string? VideoUrl { get; set; }
+
+    public string? DocumentUrl { get; set; }
 
     public int OrderIndex { get; set; }
 

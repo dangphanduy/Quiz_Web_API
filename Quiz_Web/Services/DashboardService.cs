@@ -1,4 +1,4 @@
-using Quiz_Web.Models.EF;
+﻿using Quiz_Web.Models.EF;
 using Quiz_Web.Models.ViewModels;
 using Quiz_Web.Services.IServices;
 
@@ -24,7 +24,7 @@ namespace Quiz_Web.Services
             var totalRevenue = totalPayments * 0.40m; // Admin nhận 40%, instructor nhận 60%
 
             // ✅ SỬA: Lấy dữ liệu từ 6 tháng trước để có đủ điểm cho đường biểu đồ
-            var sixMonthsAgo = DateTime.Now.AddMonths(-6);
+            var sixMonthsAgo = DateTimeHelper.Now.AddMonths(-6);
             var userGrowthDataFromDb = _context.Users
                 .Where(u => u.CreatedAt >= sixMonthsAgo)
                 .GroupBy(u => new { u.CreatedAt.Year, u.CreatedAt.Month })
@@ -32,7 +32,7 @@ namespace Quiz_Web.Services
                 .ToList();
 
             // ✅ Tạo đầy đủ 6 tháng với giá trị 0 cho tháng không có dữ liệu
-            var userGrowthData = GenerateMonthlyData(sixMonthsAgo, DateTime.Now, userGrowthDataFromDb, (data, y, m) => 
+            var userGrowthData = GenerateMonthlyData(sixMonthsAgo, DateTimeHelper.Now, userGrowthDataFromDb, (data, y, m) => 
                 data.FirstOrDefault(x => x.Year == y && x.Month == m)?.Count ?? 0);
 
             // ✅ SỬA: Tính 40% doanh thu theo tháng cho admin với 6 tháng dữ liệu
@@ -43,7 +43,7 @@ namespace Quiz_Web.Services
                 .ToList();
 
             // ✅ Tạo đầy đủ 6 tháng với giá trị 0 cho tháng không có dữ liệu
-            var revenueData = GenerateMonthlyData(sixMonthsAgo, DateTime.Now, revenueDataFromDb, (data, y, m) =>
+            var revenueData = GenerateMonthlyData(sixMonthsAgo, DateTimeHelper.Now, revenueDataFromDb, (data, y, m) =>
             {
                 var monthData = data.FirstOrDefault(x => x.Year == y && x.Month == m);
                 return monthData != null ? monthData.Total * 0.40m : 0; // Admin nhận 40%
@@ -77,25 +77,25 @@ namespace Quiz_Web.Services
             }).ToList();
 
             // ✅ SỬA: Luôn hiển thị 12 tháng để thấy rõ xu hướng
-            var twelveMonthsAgo = DateTime.Now.AddMonths(-12);
+            var twelveMonthsAgo = DateTimeHelper.Now.AddMonths(-12);
             var newUsersDataFromDb = _context.Users
                 .Where(u => u.CreatedAt >= twelveMonthsAgo)
                 .GroupBy(u => new { u.CreatedAt.Year, u.CreatedAt.Month })
                 .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
                 .ToList();
 
-            var newUsersPerMonth = GenerateMonthlyData(twelveMonthsAgo, DateTime.Now, newUsersDataFromDb, (data, y, m) =>
+            var newUsersPerMonth = GenerateMonthlyData(twelveMonthsAgo, DateTimeHelper.Now, newUsersDataFromDb, (data, y, m) =>
                 data.FirstOrDefault(x => x.Year == y && x.Month == m)?.Count ?? 0);
 
             // ✅ SỬA: Active users - hiển thị 30 ngày với đầy đủ các ngày
-            var thirtyDaysAgo = DateTime.Now.AddDays(-30).Date;
+            var thirtyDaysAgo = DateTimeHelper.Now.AddDays(-30).Date;
             var activeUsersDataFromDb = _context.TestAttempts
                 .Where(ta => ta.StartedAt >= thirtyDaysAgo)
                 .GroupBy(ta => ta.StartedAt.Date)
                 .Select(g => new { Date = g.Key, UserIds = g.Select(ta => ta.UserId).Distinct() })
                 .ToList();
 
-            var activeUsersData = GenerateDailyData(thirtyDaysAgo, DateTime.Now.Date, activeUsersDataFromDb, (data, date) =>
+            var activeUsersData = GenerateDailyData(thirtyDaysAgo, DateTimeHelper.Now.Date, activeUsersDataFromDb, (data, date) =>
             {
                 var dayData = data.FirstOrDefault(x => x.Date == date);
                 return dayData?.UserIds.Count() ?? 0;
@@ -106,15 +106,15 @@ namespace Quiz_Web.Services
                 UsersByRole = usersByRole,
                 NewUsersPerMonth = newUsersPerMonth,
                 ActiveUsersData = activeUsersData,
-                TotalActiveUsers = _context.TestAttempts.Where(ta => ta.StartedAt >= DateTime.Now.AddDays(-30)).Select(ta => ta.UserId).Distinct().Count(),
-                NewUsersThisMonth = _context.Users.Count(u => u.CreatedAt.Month == DateTime.Now.Month && u.CreatedAt.Year == DateTime.Now.Year)
+                TotalActiveUsers = _context.TestAttempts.Where(ta => ta.StartedAt >= DateTimeHelper.Now.AddDays(-30)).Select(ta => ta.UserId).Distinct().Count(),
+                NewUsersThisMonth = _context.Users.Count(u => u.CreatedAt.Month == DateTimeHelper.Now.Month && u.CreatedAt.Year == DateTimeHelper.Now.Year)
             };
         }
 
         public LearningActivitiesViewModel GetLearningActivities()
         {
             // ✅ SỬA: Hiển thị 6 tháng đầy đủ
-            var sixMonthsAgo = DateTime.Now.AddMonths(-6);
+            var sixMonthsAgo = DateTimeHelper.Now.AddMonths(-6);
             
             var testsCompletedDataFromDb = _context.TestAttempts
                 .Where(ta => ta.SubmittedAt.HasValue && ta.SubmittedAt >= sixMonthsAgo)
@@ -122,7 +122,7 @@ namespace Quiz_Web.Services
                 .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
                 .ToList();
 
-            var testsCompletedData = GenerateMonthlyData(sixMonthsAgo, DateTime.Now, testsCompletedDataFromDb, (data, y, m) =>
+            var testsCompletedData = GenerateMonthlyData(sixMonthsAgo, DateTimeHelper.Now, testsCompletedDataFromDb, (data, y, m) =>
                 data.FirstOrDefault(x => x.Year == y && x.Month == m)?.Count ?? 0);
 
             var coursesEnrolledDataFromDb = _context.CoursePurchases
@@ -131,7 +131,7 @@ namespace Quiz_Web.Services
                 .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
                 .ToList();
 
-            var coursesEnrolledData = GenerateMonthlyData(sixMonthsAgo, DateTime.Now, coursesEnrolledDataFromDb, (data, y, m) =>
+            var coursesEnrolledData = GenerateMonthlyData(sixMonthsAgo, DateTimeHelper.Now, coursesEnrolledDataFromDb, (data, y, m) =>
                 data.FirstOrDefault(x => x.Year == y && x.Month == m)?.Count ?? 0);
 
             var popularCourses = _context.CoursePurchases
@@ -159,14 +159,14 @@ namespace Quiz_Web.Services
         public RevenuePaymentsViewModel GetRevenuePayments()
         {
             // ✅ SỬA: Tính 40% doanh thu hàng tháng cho admin với 12 tháng đầy đủ
-            var twelveMonthsAgo = DateTime.Now.AddMonths(-12);
+            var twelveMonthsAgo = DateTimeHelper.Now.AddMonths(-12);
             var monthlyRevenueFromDb = _context.Payments
                 .Where(p => p.Status == "Paid" && p.PaidAt.HasValue && p.PaidAt >= twelveMonthsAgo)
                 .GroupBy(p => new { p.PaidAt.Value.Year, p.PaidAt.Value.Month })
                 .Select(g => new { g.Key.Year, g.Key.Month, Total = g.Sum(p => p.Amount) })
                 .ToList();
 
-            var monthlyRevenue = GenerateMonthlyData(twelveMonthsAgo, DateTime.Now, monthlyRevenueFromDb, (data, y, m) =>
+            var monthlyRevenue = GenerateMonthlyData(twelveMonthsAgo, DateTimeHelper.Now, monthlyRevenueFromDb, (data, y, m) =>
             {
                 var monthData = data.FirstOrDefault(x => x.Year == y && x.Month == m);
                 return monthData != null ? monthData.Total * 0.40m : 0; // Admin nhận 40%
@@ -209,12 +209,12 @@ namespace Quiz_Web.Services
 
             // ✅ SỬA: Tính 40% doanh thu tháng hiện tại và tháng trước
             var currentMonthTotal = _context.Payments
-                .Where(p => p.Status == "Paid" && p.PaidAt.HasValue && p.PaidAt.Value.Month == DateTime.Now.Month && p.PaidAt.Value.Year == DateTime.Now.Year)
+                .Where(p => p.Status == "Paid" && p.PaidAt.HasValue && p.PaidAt.Value.Month == DateTimeHelper.Now.Month && p.PaidAt.Value.Year == DateTimeHelper.Now.Year)
                 .Sum(p => (decimal?)p.Amount) ?? 0;
             var currentMonthRevenue = currentMonthTotal * 0.40m; // Admin nhận 40%
 
             var lastMonthTotal = _context.Payments
-                .Where(p => p.Status == "Paid" && p.PaidAt.HasValue && p.PaidAt.Value.Month == DateTime.Now.AddMonths(-1).Month && p.PaidAt.Value.Year == DateTime.Now.AddMonths(-1).Year)
+                .Where(p => p.Status == "Paid" && p.PaidAt.HasValue && p.PaidAt.Value.Month == DateTimeHelper.Now.AddMonths(-1).Month && p.PaidAt.Value.Year == DateTimeHelper.Now.AddMonths(-1).Year)
                 .Sum(p => (decimal?)p.Amount) ?? 0;
             var lastMonthRevenue = lastMonthTotal * 0.40m; // Admin nhận 40%
 
@@ -272,7 +272,7 @@ namespace Quiz_Web.Services
                     Name = g.Name ?? "Unknown",
                     Value = g.AvgScore.ToString("F1"),
                     Status = g.AvgScore >= 80 ? "Excellent" : "Good",
-                    Date = DateTime.Now
+                    Date = DateTimeHelper.Now
                 }).OrderByDescending(x => decimal.Parse(x.Value)).Take(10).ToList();
 
             var avgScore = _context.TestAttempts.Where(ta => ta.Score.HasValue).Select(ta => ta.Score.Value).DefaultIfEmpty(0).Average();
@@ -290,7 +290,7 @@ namespace Quiz_Web.Services
         public SystemActivityViewModel GetSystemActivity()
         {
             var loginActivity = _context.AuditLogs
-                .Where(al => al.Action == "Login" && al.CreatedAt >= DateTime.Now.AddDays(-7))
+                .Where(al => al.Action == "Login" && al.CreatedAt >= DateTimeHelper.Now.AddDays(-7))
                 .GroupBy(al => al.CreatedAt.Date)
                 .Select(g => new { Date = g.Key, Count = g.Count() })
                 .ToList()
@@ -315,7 +315,7 @@ namespace Quiz_Web.Services
                 }).ToList();
 
             var errorRates = _context.ErrorLogs
-                .Where(el => el.CreatedAt >= DateTime.Now.AddDays(-7))
+                .Where(el => el.CreatedAt >= DateTimeHelper.Now.AddDays(-7))
                 .GroupBy(el => el.CreatedAt.Date)
                 .Select(g => new { Date = g.Key, Count = g.Count() })
                 .ToList()
@@ -331,8 +331,8 @@ namespace Quiz_Web.Services
                 LoginActivity = loginActivity,
                 SystemLogs = systemLogs,
                 ErrorRates = errorRates,
-                TotalLogins = _context.AuditLogs.Count(al => al.Action == "Login" && al.CreatedAt >= DateTime.Now.AddDays(-30)),
-                SystemErrors = _context.ErrorLogs.Count(el => el.CreatedAt >= DateTime.Now.AddDays(-30))
+                TotalLogins = _context.AuditLogs.Count(al => al.Action == "Login" && al.CreatedAt >= DateTimeHelper.Now.AddDays(-30)),
+                SystemErrors = _context.ErrorLogs.Count(el => el.CreatedAt >= DateTimeHelper.Now.AddDays(-30))
             };
         }
 

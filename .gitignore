@@ -425,8 +425,13 @@ secrets.json
 appsettings.Development.json
 appsettings.Staging.json
 appsettings.Test.json
-!appsettings.json
+Quiz_Web/appsettings.json
+google-creds.json
 /BOOTSTRAP_MIGRATION.md
 /FLASHCARD_COMPLETION_FEATURE.md
 /FLASHCARD_FILE_STRUCTURE.md
 /FLASHCARD_SERVICE_REFACTORING.md
+
+# Google Cloud Storage credentials
+google-creds.json
+*google-creds*.json

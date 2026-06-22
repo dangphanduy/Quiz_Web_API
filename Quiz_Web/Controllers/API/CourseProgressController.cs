@@ -1,9 +1,10 @@
-using Microsoft.AspNetCore.Authorization;
+ï»¿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Quiz_Web.Services.IServices;
 
 namespace Quiz_Web.Controllers.API
 {
@@ -14,13 +15,19 @@ namespace Quiz_Web.Controllers.API
 	{
 		private readonly LearningPlatformContext _context;
 		private readonly ILogger<CourseProgressController> _logger;
+		private readonly ICertificateService _certificateService;
+		private readonly IEmailService _emailService;
 
 		public CourseProgressController(
 			LearningPlatformContext context,
-			ILogger<CourseProgressController> logger)
+			ILogger<CourseProgressController> logger,
+			ICertificateService certificateService,
+			IEmailService emailService)
 		{
 			_context = context;
 			_logger = logger;
+			_certificateService = certificateService;
+			_emailService = emailService;
 		}
 
 		// GET: /api/course-progress/get-progress?courseSlug={slug}
@@ -65,16 +72,17 @@ namespace Quiz_Web.Controllers.API
 						completionPercentage = 0.0,
 						completedContents = 0,
 						totalContents = 0,
-						completedLessons = new List<int>()
+						completedLessons = new List<int>(),
+						completedContentIds = new List<int>()
 					});
 				}
 
-				// ? Get completed ContentIds for this user (ch? l?y ContentId ?ã complete)
+				// ? Get completed ContentIds for this user (ch? l?y ContentId ?Äƒ complete)
 				var completedContentIds = await _context.CourseProgresses
 					.Where(p => p.CourseId == course.CourseId && 
 					           p.UserId == userId && 
 					           p.IsCompleted && 
-					           allCourseContentIds.Contains(p.ContentId)) // ? Ch? l?y ContentId thu?c course này
+					           allCourseContentIds.Contains(p.ContentId)) // ? Ch? l?y ContentId thu?c course nÃ y
 					.Select(p => p.ContentId)
 					.Distinct()
 					.ToListAsync();
@@ -91,9 +99,14 @@ namespace Quiz_Web.Controllers.API
 					.Distinct()
 					.ToListAsync();
 
-				// ? Calculate completion percentage (??m b?o không v??t quá 100%)
+				// ? Calculate completion percentage (??m b?o khÃ´ng v??t quÃ¡ 100%)
 				var completionPercentage = (double)completedContentsCount / totalContents * 100;
 				completionPercentage = Math.Min(completionPercentage, 100); // Cap at 100%
+
+				var certificate = await _context.Certificates
+					.FirstOrDefaultAsync(c => c.CourseId == course.CourseId && c.UserId == userId);
+				var isCompleted100 = completionPercentage >= 100;
+				var certificateVerifyCode = certificate?.VerifyCode;
 
 				return Ok(new
 				{
@@ -101,7 +114,10 @@ namespace Quiz_Web.Controllers.API
 					completionPercentage = Math.Round(completionPercentage, 2),
 					completedContents = completedContentsCount,
 					totalContents = totalContents,
-					completedLessons = completedLessons
+					completedLessons = completedLessons,
+					completedContentIds = completedContentIds,
+					isCompleted100,
+					certificateVerifyCode
 				});
 			}
 			catch (Exception ex)
@@ -171,7 +187,7 @@ namespace Quiz_Web.Controllers.API
 						ContentType = "Video",
 						ContentId = videoContent.ContentId,
 						IsCompleted = false,
-						LastViewedAt = DateTime.UtcNow,
+						LastViewedAt = DateTimeHelper.Now,
 						DurationSec = request.WatchedDuration
 					};
 					_context.CourseProgresses.Add(progress);
@@ -179,7 +195,7 @@ namespace Quiz_Web.Controllers.API
 				else
 				{
 					// Update existing progress
-					progress.LastViewedAt = DateTime.UtcNow;
+					progress.LastViewedAt = DateTimeHelper.Now;
 					progress.DurationSec = request.WatchedDuration;
 				}
 
@@ -254,8 +270,8 @@ namespace Quiz_Web.Controllers.API
 						ContentType = "Video",
 						ContentId = videoContent.ContentId,
 						IsCompleted = true,
-						CompletionAt = DateTime.UtcNow,
-						LastViewedAt = DateTime.UtcNow,
+						CompletionAt = DateTimeHelper.Now,
+						LastViewedAt = DateTimeHelper.Now,
 						DurationSec = request.WatchedDuration
 					};
 					_context.CourseProgresses.Add(progress);
@@ -264,8 +280,8 @@ namespace Quiz_Web.Controllers.API
 				{
 					// Update existing progress
 					progress.IsCompleted = true;
-					progress.CompletionAt = DateTime.UtcNow;
-					progress.LastViewedAt = DateTime.UtcNow;
+					progress.CompletionAt = DateTimeHelper.Now;
+					progress.LastViewedAt = DateTimeHelper.Now;
 					progress.DurationSec = request.WatchedDuration;
 				}
 
@@ -273,7 +289,10 @@ namespace Quiz_Web.Controllers.API
 
 				_logger.LogInformation("User {UserId} completed video in lesson {LessonId}", userId, request.LessonId);
 
-				return Ok(new { success = true, message = "Video marked as complete" });
+				// ? Check progress completion and generate certificate
+				var (justCompleted, verifyCode) = await CheckAndGenerateCertificateAsync(userId, course.CourseId);
+
+				return Ok(new { success = true, message = "Video marked as complete", justCompleted, verifyCode });
 			}
 			catch (Exception ex)
 			{
@@ -341,8 +360,8 @@ namespace Quiz_Web.Controllers.API
 						ContentType = request.ContentType,
 						ContentId = request.ContentId,
 						IsCompleted = true,
-						CompletionAt = DateTime.UtcNow,
-						LastViewedAt = DateTime.UtcNow
+						CompletionAt = DateTimeHelper.Now,
+						LastViewedAt = DateTimeHelper.Now
 					};
 					_context.CourseProgresses.Add(progress);
 				}
@@ -350,8 +369,8 @@ namespace Quiz_Web.Controllers.API
 				{
 					// Update existing progress
 					progress.IsCompleted = true;
-					progress.CompletionAt = DateTime.UtcNow;
-					progress.LastViewedAt = DateTime.UtcNow;
+					progress.CompletionAt = DateTimeHelper.Now;
+					progress.LastViewedAt = DateTimeHelper.Now;
 				}
 
 				await _context.SaveChangesAsync();
@@ -359,7 +378,10 @@ namespace Quiz_Web.Controllers.API
 				_logger.LogInformation("User {UserId} completed content {ContentId} ({ContentType}) in lesson {LessonId}", 
 					userId, request.ContentId, request.ContentType, request.LessonId);
 
-				return Ok(new { success = true, message = $"{request.ContentType} content marked as complete" });
+				// ? Check progress completion and generate certificate
+				var (justCompleted, verifyCode) = await CheckAndGenerateCertificateAsync(userId, course.CourseId);
+
+				return Ok(new { success = true, message = $"{request.ContentType} content marked as complete", justCompleted, verifyCode });
 			}
 			catch (Exception ex)
 			{
@@ -563,6 +585,109 @@ namespace Quiz_Web.Controllers.API
 			{
 				_logger.LogError(ex, "Error checking content completion for contentId: {ContentId}", contentId);
 				return StatusCode(500, new { success = false, message = "Internal server error" });
+			}
+		}
+
+		private async Task<(bool JustCompleted, string? VerifyCode)> CheckAndGenerateCertificateAsync(int userId, int courseId)
+		{
+			try
+			{
+				var course = await _context.Courses
+					.Include(c => c.Owner)
+					.Include(c => c.CourseChapters)
+						.ThenInclude(ch => ch.Lessons)
+							.ThenInclude(l => l.LessonContents)
+					.FirstOrDefaultAsync(c => c.CourseId == courseId);
+
+				if (course == null) return (false, null);
+
+				var allCourseContentIds = course.CourseChapters
+					.SelectMany(ch => ch.Lessons)
+					.SelectMany(l => l.LessonContents)
+					.Select(c => c.ContentId)
+					.Distinct()
+					.ToList();
+
+				var totalContents = allCourseContentIds.Count;
+				if (totalContents == 0) return (false, null);
+
+				var completedContentIds = await _context.CourseProgresses
+					.Where(p => p.CourseId == courseId && 
+					           p.UserId == userId && 
+					           p.IsCompleted && 
+					           allCourseContentIds.Contains(p.ContentId))
+					.Select(p => p.ContentId)
+					.Distinct()
+					.ToListAsync();
+
+				if (completedContentIds.Count >= totalContents)
+				{
+					var existingCert = await _context.Certificates
+						.FirstOrDefaultAsync(c => c.CourseId == courseId && c.UserId == userId);
+
+					if (existingCert != null)
+					{
+						return (false, existingCert.VerifyCode);
+					}
+
+					string verifyCode;
+					do
+					{
+						verifyCode = Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper();
+					} while (await _context.Certificates.AnyAsync(c => c.VerifyCode == verifyCode));
+
+					string serial = $"CERT-{courseId}-{userId}-{DateTimeHelper.Now:yyyyMMdd}";
+
+					var certificate = new Certificate
+					{
+						CourseId = courseId,
+						UserId = userId,
+						IssuedAt = DateTimeHelper.Now,
+						VerifyCode = verifyCode,
+						Serial = serial
+					};
+
+					_context.Certificates.Add(certificate);
+					await _context.SaveChangesAsync();
+
+					var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+					if (user != null)
+					{
+						try
+						{
+							var imageBytes = await _certificateService.GenerateCertificateImageAsync(
+								user.FullName,
+								course.Title,
+								course.Owner?.FullName ?? "ymedu Instructor",
+								certificate.IssuedAt,
+								certificate.VerifyCode,
+								certificate.Serial ?? certificate.CertId.ToString("D4")
+							);
+
+							string fileName = $"Certificate_{course.Slug}.png";
+							await _emailService.SendCertificateEmailAsync(
+								user.Email,
+								user.FullName,
+								course.Title,
+								imageBytes,
+								fileName
+							);
+						}
+						catch (Exception ex)
+						{
+							_logger.LogError(ex, "Failed to generate image or send email for certificate ID {CertId}", certificate.CertId);
+						}
+					}
+
+					return (true, verifyCode);
+				}
+
+				return (false, null);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error in CheckAndGenerateCertificateAsync for user {UserId}, course {CourseId}", userId, courseId);
+				return (false, null);
 			}
 		}
 	}

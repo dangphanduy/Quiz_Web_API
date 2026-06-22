@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+ï»¿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -105,7 +105,7 @@ namespace Quiz_Web.Controllers.API
                 }
 
                 notification.IsRead = true;
-                notification.ReadAt = DateTime.UtcNow;
+                notification.ReadAt = DateTimeHelper.Now;
 
                 await _context.SaveChangesAsync();
 
@@ -137,7 +137,7 @@ namespace Quiz_Web.Controllers.API
                 foreach (var notification in unreadNotifications)
                 {
                     notification.IsRead = true;
-                    notification.ReadAt = DateTime.UtcNow;
+                    notification.ReadAt = DateTimeHelper.Now;
                 }
 
                 await _context.SaveChangesAsync();
@@ -185,20 +185,20 @@ namespace Quiz_Web.Controllers.API
 
         private string GetTimeAgo(DateTime dateTime)
         {
-            var timeSpan = DateTime.UtcNow - dateTime;
+            var timeSpan = DateTimeHelper.Now - dateTime;
 
             if (timeSpan.TotalMinutes < 1)
                 return "V?a xong";
             if (timeSpan.TotalMinutes < 60)
-                return $"{(int)timeSpan.TotalMinutes} phút tr??c";
+                return $"{(int)timeSpan.TotalMinutes} phï¿½t tr??c";
             if (timeSpan.TotalHours < 24)
                 return $"{(int)timeSpan.TotalHours} gi? tr??c";
             if (timeSpan.TotalDays < 7)
-                return $"{(int)timeSpan.TotalDays} ngày tr??c";
+                return $"{(int)timeSpan.TotalDays} ngï¿½y tr??c";
             if (timeSpan.TotalDays < 30)
                 return $"{(int)(timeSpan.TotalDays / 7)} tu?n tr??c";
             if (timeSpan.TotalDays < 365)
-                return $"{(int)(timeSpan.TotalDays / 30)} tháng tr??c";
+                return $"{(int)(timeSpan.TotalDays / 30)} thï¿½ng tr??c";
 
             return $"{(int)(timeSpan.TotalDays / 365)} n?m tr??c";
         }

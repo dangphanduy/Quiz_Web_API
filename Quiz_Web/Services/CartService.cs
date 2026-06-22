@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Services.IServices;
@@ -9,11 +9,16 @@ namespace Quiz_Web.Services
     {
         private readonly LearningPlatformContext _context;
         private readonly ILogger<CartService> _logger;
+        private readonly ICourseAccessService _courseAccessService;
 
-        public CartService(LearningPlatformContext context, ILogger<CartService> logger)
+        public CartService(
+            LearningPlatformContext context,
+            ILogger<CartService> logger,
+            ICourseAccessService courseAccessService)
         {
             _context = context;
             _logger = logger;
+            _courseAccessService = courseAccessService;
         }
 
         public async Task<ShoppingCart?> GetOrCreateCartAsync(int userId)
@@ -31,7 +36,7 @@ namespace Quiz_Web.Services
                     cart = new ShoppingCart
                     {
                         UserId = userId,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.Now
                     };
                     _context.ShoppingCarts.Add(cart);
                     await _context.SaveChangesAsync();
@@ -137,9 +142,13 @@ namespace Quiz_Web.Services
                     return false;
                 }
 
-                // Check if user already purchased (completed only)
-                var alreadyPurchased = await _context.CoursePurchases
-                    .AnyAsync(cp => cp.BuyerId == userId && cp.CourseId == courseId && cp.Status == "completed");
+                if (course.Price <= 0)
+                {
+                    _logger.LogWarning("Free course {CourseId} should not be added to cart for user {UserId}", courseId, userId);
+                    return false;
+                }
+
+                var alreadyPurchased = await _courseAccessService.CheckCourseAccessAsync(userId, courseId);
 
                 if (alreadyPurchased)
                 {
@@ -151,11 +160,11 @@ namespace Quiz_Web.Services
                 {
                     CartId = cart.CartId,
                     CourseId = courseId,
-                    AddedAt = DateTime.UtcNow
+                    AddedAt = DateTimeHelper.Now
                 };
 
                 _context.CartItems.Add(cartItem);
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.UpdatedAt = DateTimeHelper.Now;
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Added course {CourseId} to cart for user {UserId}", courseId, userId);
@@ -185,7 +194,7 @@ namespace Quiz_Web.Services
                 }
 
                 _context.CartItems.Remove(cartItem);
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.UpdatedAt = DateTimeHelper.Now;
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Removed course {CourseId} from cart for user {UserId}", courseId, userId);
@@ -210,7 +219,7 @@ namespace Quiz_Web.Services
                     .ToListAsync();
 
                 _context.CartItems.RemoveRange(cartItems);
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.UpdatedAt = DateTimeHelper.Now;
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Cleared cart for user {UserId}", userId);

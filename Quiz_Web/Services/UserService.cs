@@ -22,9 +22,16 @@ namespace Quiz_Web.Services
 		{
 			try
 			{
-				var user = _context.Users.
-					Include(u => u.Role).
-					FirstOrDefault(u => u.Username == username.ToLower().Trim() && u.PasswordHash == password);
+				var normalizedUsername = username.ToLower().Trim();
+				var now = DateTimeHelper.Now;
+				var user = _context.Users
+					.Include(u => u.Role)
+					.Where(u => u.Username == normalizedUsername && u.PasswordHash == password)
+					.OrderByDescending(u => u.UserSubscriptions.Any(subscription =>
+						subscription.Status == SubscriptionStatuses.Active &&
+						subscription.EndDate >= now))
+					.ThenBy(u => u.UserId)
+					.FirstOrDefault();
 				return user;
 			}
 			catch (Exception ex)
@@ -96,7 +103,7 @@ namespace Quiz_Web.Services
 				token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
 				user.PasswordResetToken = token;
-				user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+				user.PasswordResetTokenExpiry = DateTimeHelper.Now.AddHours(1);
 
 				_context.SaveChanges();
 				return true;
@@ -110,14 +117,72 @@ namespace Quiz_Web.Services
 			}
 		}
 
+		public bool GenerateForgotPasswordCode(string email, out string code)
+		{
+			try
+			{
+				var user = GetUserByEmail(email);
+				if (user == null)
+				{
+					code = null;
+					return false;
+				}
+
+				// Generate a 6-digit code
+				code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString("D6");
+
+				// Generate a secure long token
+				var secureToken = Guid.NewGuid().ToString("N");
+
+				// Store formatted as OTP|SecureToken
+				user.PasswordResetToken = $"{code}|{secureToken}";
+				user.PasswordResetTokenExpiry = DateTimeHelper.Now.AddMinutes(10);
+
+				_context.SaveChanges();
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError($"GenerateForgotPasswordCode error: {ex.Message}");
+				code = null;
+				return false;
+			}
+		}
+
+		public bool VerifyResetCode(string email, string code, out string secureToken)
+		{
+			secureToken = null;
+			try
+			{
+				var user = GetUserByEmail(email);
+				if (user == null || string.IsNullOrEmpty(user.PasswordResetToken) || user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTimeHelper.Now)
+				{
+					return false;
+				}
+
+				var parts = user.PasswordResetToken.Split('|');
+				if (parts.Length == 2 && parts[0] == code.Trim())
+				{
+					secureToken = parts[1];
+					return true;
+				}
+				return false;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError($"VerifyResetCode error: {ex.Message}");
+				return false;
+			}
+		}
+
 		public bool ValidatePasswordResetToken(string token)
 		{
 			try
 			{
 				_logger.LogInformation($"ValidatePasswordResetToken called with token: {token}");
-				_logger.LogInformation($"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
+				_logger.LogInformation($"Current UTC time: {DateTimeHelper.Now:yyyy-MM-dd HH:mm:ss}");
 
-				var user = _context.Users.FirstOrDefault(u => u.PasswordResetToken == token);
+				var user = _context.Users.FirstOrDefault(u => u.PasswordResetToken == token || (u.PasswordResetToken != null && u.PasswordResetToken.EndsWith("|" + token)));
 
 				if (user == null)
 				{
@@ -134,7 +199,7 @@ namespace Quiz_Web.Services
 					return false;
 				}
 
-				bool isValid = user.PasswordResetTokenExpiry > DateTime.UtcNow;
+				bool isValid = user.PasswordResetTokenExpiry > DateTimeHelper.Now;
 				_logger.LogInformation($"Token is valid: {isValid}");
 
 				return isValid;
@@ -152,9 +217,10 @@ namespace Quiz_Web.Services
 		{
 			try
 			{
-				var user = _context.Users.FirstOrDefault(u => u.PasswordResetToken == token
-				&& u.PasswordResetTokenExpiry.HasValue
-				&& u.PasswordResetTokenExpiry > DateTime.UtcNow);
+				var user = _context.Users.FirstOrDefault(u => 
+					(u.PasswordResetToken == token || (u.PasswordResetToken != null && u.PasswordResetToken.EndsWith("|" + token)))
+					&& u.PasswordResetTokenExpiry.HasValue
+					&& u.PasswordResetTokenExpiry > DateTimeHelper.Now);
 
 				if (user == null) return false;
 

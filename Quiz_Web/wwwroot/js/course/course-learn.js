@@ -1,4 +1,4 @@
-﻿// ============================================
+// ============================================
 // COURSE LEARN PAGE - JAVASCRIPT
 // ============================================
 
@@ -51,6 +51,11 @@ function setupTheoryTracking() {
     const theoryItems = document.querySelectorAll('.theory-item');
     
     theoryItems.forEach(item => {
+        // If the item contains a PDF document, do not auto-track it via scrolling
+        if (item.querySelector('.pdf-viewer-section')) {
+            return;
+        }
+
         const contentPreview = item.querySelector('.content-preview');
         if (!contentPreview) return;
         
@@ -124,6 +129,57 @@ async function markTheoryContentViewed(contentId) {
         }
     } catch (error) {
         console.error('Error marking theory content:', error);
+    }
+}
+
+async function markPdfAsRead(button, contentId) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const lessonId = urlParams.get('lessonId');
+    const courseSlug = window.location.pathname.split('/')[2];
+    
+    if (!lessonId || !courseSlug || !contentId) return;
+    
+    button.disabled = true;
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang ghi nhận...';
+    
+    try {
+        const response = await fetch('/api/course-progress/mark-content-complete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                courseSlug: courseSlug,
+                lessonId: parseInt(lessonId),
+                contentId: contentId,
+                contentType: 'Theory'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (typeof toastr !== 'undefined') {
+                toastr.success('Đã hoàn thành đọc tài liệu!');
+            }
+            button.className = 'btn btn-success rounded-pill px-4 py-2 mark-pdf-read-btn disabled';
+            button.innerHTML = '<i class="fas fa-check-circle me-2"></i>Đã đọc xong tài liệu';
+            loadCourseProgress();
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.error(data.message || 'Không thể đánh dấu hoàn thành');
+            }
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        }
+    } catch (error) {
+        console.error('Error marking PDF content:', error);
+        if (typeof toastr !== 'undefined') {
+            toastr.error('Đã xảy ra lỗi kết nối');
+        }
+        button.disabled = false;
+        button.innerHTML = originalHtml;
     }
 }
 
@@ -1055,6 +1111,38 @@ function loadCourseProgress() {
                         progressText.textContent = `${Math.round(percentage)}% (${data.completedContents}/${data.totalContents})`;
                     }
                 }
+
+                // Show certificate sidebar button if completed
+                if (data.isCompleted100 && data.certificateVerifyCode) {
+                    const certContainer = document.getElementById('certificateSidebarContainer');
+                    if (certContainer) {
+                        certContainer.style.display = 'block';
+                        setupCertificateUI(data.certificateVerifyCode);
+                    }
+                    
+                    // Show congrats modal if not shown before
+                    const congratsShownKey = `congrats_shown_${courseSlug}`;
+                    if (!localStorage.getItem(congratsShownKey)) {
+                        const congratsModalEl = document.getElementById('congratsModal');
+                        if (congratsModalEl) {
+                            const congratsModal = new bootstrap.Modal(congratsModalEl);
+                            congratsModal.show();
+                            localStorage.setItem(congratsShownKey, 'true');
+                        }
+                    }
+                }
+                
+                // Update completed content buttons (PDF buttons)
+                if (data.completedContentIds && data.completedContentIds.length > 0) {
+                    data.completedContentIds.forEach(contentId => {
+                        const btn = document.querySelector(`.mark-pdf-read-btn[data-content-id="${contentId}"]`);
+                        if (btn) {
+                            btn.className = 'btn btn-success rounded-pill px-4 py-2 mark-pdf-read-btn disabled';
+                            btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Đã đọc xong tài liệu';
+                            btn.disabled = true;
+                        }
+                    });
+                }
                 
                 // Update completed lessons UI
                 if (data.completedLessons && data.completedLessons.length > 0) {
@@ -1104,3 +1192,75 @@ window.addEventListener('beforeunload', function() {
         saveVideoProgress();
     }
 });
+
+// Certificate UI logic helpers
+let isCertificateUISetup = false;
+function setupCertificateUI(verifyCode) {
+    if (isCertificateUISetup) return;
+    isCertificateUISetup = true;
+
+    // Sidebar button click
+    const viewBtn = document.getElementById('viewCertificateBtn');
+    if (viewBtn) {
+        viewBtn.addEventListener('click', function() {
+            showCertificate(verifyCode);
+        });
+    }
+
+    // Congrats Modal View button click
+    const congratsViewBtn = document.getElementById('congratsViewCertBtn');
+    if (congratsViewBtn) {
+        congratsViewBtn.addEventListener('click', function() {
+            // Hide congrats modal
+            const congratsModalEl = document.getElementById('congratsModal');
+            if (congratsModalEl) {
+                const congratsModal = bootstrap.Modal.getInstance(congratsModalEl);
+                if (congratsModal) {
+                    congratsModal.hide();
+                }
+            }
+            // Show certificate modal
+            showCertificate(verifyCode);
+        });
+    }
+}
+
+function showCertificate(verifyCode) {
+    const certModalEl = document.getElementById('certificateModal');
+    if (!certModalEl) return;
+    
+    const certModal = new bootstrap.Modal(certModalEl);
+    
+    // Reset view
+    const certSpinner = document.getElementById('certSpinner');
+    const certImg = document.getElementById('certificateImg');
+    const downloadBtn = document.getElementById('downloadCertBtn');
+    
+    if (certSpinner) {
+        certSpinner.style.display = 'flex';
+        const spinner = certSpinner.querySelector('.spinner-border');
+        if (spinner) spinner.style.display = 'inline-block';
+        certSpinner.querySelector('span').textContent = 'Đang khởi tạo chứng chỉ của bạn...';
+    }
+    if (certImg) {
+        certImg.style.display = 'none';
+        certImg.src = `/api/certificates/${verifyCode}/image`;
+        certImg.onload = function() {
+            if (certSpinner) certSpinner.style.display = 'none';
+            certImg.style.display = 'block';
+        };
+        certImg.onerror = function() {
+            if (certSpinner) {
+                certSpinner.querySelector('span').textContent = 'Không thể tải ảnh chứng chỉ. Vui lòng thử lại sau.';
+                const spinner = certSpinner.querySelector('.spinner-border');
+                if (spinner) spinner.style.display = 'none';
+            }
+        };
+    }
+    
+    if (downloadBtn) {
+        downloadBtn.href = `/api/certificates/${verifyCode}/image?download=true`;
+    }
+    
+    certModal.show();
+}

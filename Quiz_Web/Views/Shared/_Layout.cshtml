@@ -1,7 +1,7 @@
-﻿@inject Quiz_Web.Services.IServices.ICourseService CourseService
+@inject Quiz_Web.Services.IServices.ICourseService CourseService
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -29,7 +29,7 @@
 
                 <!-- Khám phá (Desktop only) with Dropdown -->
                 <div class="nav-item dropdown explore-dropdown d-none d-lg-flex">
-                    <a class="nav-link text-dark px-3 dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link text-dark px-3 dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" data-i18n="nav.explore">
                         Khám phá
                     </a>
                     <div class="dropdown-menu explore-dropdown-menu">
@@ -38,7 +38,7 @@
                             {
                                 <img src="@category.IconUrl" alt="@category.Name" class="explore-icon" />
                             } *@
-                            <span>Tất cả</span>
+                            <span data-i18n="nav.all">Tất cả</span>
                         </a>
 
                         @{
@@ -69,7 +69,7 @@
                             <button type="submit" class="input-group-text bg-transparent border-0" style="cursor: pointer;" title="Tìm kiếm">
                                 <i class="bi bi-search"></i>
                             </button>
-                            <input class="form-control" type="search" name="q" placeholder="Tìm kiếm khóa học..." aria-label="Search" autocomplete="off">
+                            <input class="form-control" type="search" name="q" placeholder="Tìm kiếm khóa học..." aria-label="Search" autocomplete="off" data-i18n-placeholder="nav.searchPlaceholder">
                         </div>
                     </form>
 
@@ -82,13 +82,30 @@
 
                         <!-- Giảng viên -->
                         <li class="nav-item d-none d-xl-flex">
-                            <a class="nav-link text-dark px-3" href="@Url.Action("My", "Course")">Giảng viên</a>
+                            <a class="nav-link text-dark px-3" asp-controller="Subscription" asp-action="Pricing" data-i18n="nav.subscription">Gói thuê bao</a>
+                        </li>
+
+                        <li class="nav-item d-none d-xl-flex">
+                            <a class="nav-link text-dark px-3" href="@Url.Action("My", "Course")" data-i18n="nav.instructor">Giảng viên</a>
                         </li>
 
                         <!-- Học tập -->
                         <li class="nav-item d-none d-xl-flex">
-                            <a class="nav-link text-dark px-3" href="@Url.Action("Library", "Library")">Học tập</a>
+                            <a class="nav-link text-dark px-3" href="@Url.Action("Library", "Library")" data-i18n="nav.learning">Học tập</a>
                         </li>
+
+                        <!-- Tin nhắn -->
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item ms-1 me-2">
+                                <a class="nav-link px-2 text-dark position-relative" href="@Url.Action("Index", "Chat")" title="Tin nhắn">
+                                    <i class="bi bi-chat-text fs-5"></i>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="globalChatUnreadBadge" style="font-size: 9px; padding: 3px 6px;">
+                                        0
+                                    </span>
+                                </a>
+                            </li>
+                        }
 
                         <!-- Wishlist/Heart Icon -->
                         @* <li class="nav-item ms-2">
@@ -143,14 +160,14 @@
 
                                     <!-- Khối 2: Điều hướng chính -->
                                     <div class="dropdown-section">
-                                        <a class="dropdown-item" href="@Url.Action("Library", "Library")">Học tập</a>
-                                        <a class="dropdown-item" href="@Url.Action("Index", "Checkout")">Giỏ hàng của tôi</a>
+                                        <a class="dropdown-item" href="@Url.Action("Library", "Library")" data-i18n="nav.learning">Học tập</a>
+                                        <a class="dropdown-item" href="@Url.Action("Index", "Checkout")" data-i18n="nav.myCart">Giỏ hàng của tôi</a>
                                         @if (User.IsInRole("Admin"))
                                         {
-                                            <a class="dropdown-item" href="@Url.Action("Index", "Admin")">Bảng điều khiển admin</a>
+                                            <a class="dropdown-item" href="@Url.Action("Index", "Admin")" data-i18n="nav.adminDashboard">Bảng điều khiển admin</a>
                                         }
 
-                                        <a class="dropdown-item" href="@Url.Action("My", "Course")">Bảng điều khiển của giảng viên</a>
+                                        <a class="dropdown-item" href="@Url.Action("My", "Course")" data-i18n="nav.instructorDashboard">Bảng điều khiển của giảng viên</a>
 
                                     </div>
 
@@ -168,22 +185,30 @@
 
                                     <!-- Khối 4: Cài đặt tài khoản -->
                                     <div class="dropdown-section">
-                                        <a class="dropdown-item" href="@Url.Action("Settings", "Account")">Cài đặt tài khoản</a>
-                                        <a class="dropdown-item" href="@Url.Action("Profile", "Account")">Chỉnh sửa hồ sơ</a>
-                                        <a class="dropdown-item" href="@Url.Action("PurchaseHistory", "Account")">Lịch sử mua hàng</a>
+                                        <a class="dropdown-item" href="@Url.Action("Settings", "Account")" data-i18n="nav.accountSettings">Cài đặt tài khoản</a>
+                                        <a class="dropdown-item" href="@Url.Action("Profile", "Account")" data-i18n="nav.editProfile">Chỉnh sửa hồ sơ</a>
+                                        <a class="dropdown-item" href="@Url.Action("PurchaseHistory", "Account")" data-i18n="nav.purchaseHistory">Lịch sử mua hàng</a>
                                     </div>
 
                                     <hr class="dropdown-divider my-0">
 
                                     <!-- Khối 5: Ngôn ngữ -->
-                                    <div class="dropdown-section">
-                                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="#">
-                                            <span>Ngôn ngữ</span>
+                                    <div class="dropdown-section language-menu-section">
+                                        <div class="dropdown-item language-dropdown-item">
+                                            <span data-i18n="nav.language">Ngôn ngữ</span>
                                             <span class="text-muted">
                                                 <i class="bi bi-globe me-1"></i>
-                                                Tiếng Việt
+                                                <span data-current-language-label>Tiếng Việt</span>
                                             </span>
-                                        </a>
+                                        </div>
+                                        <div class="language-menu-options" role="group" aria-label="Language">
+                                            <button type="button" class="language-option" data-language-option="vi">
+                                                <span data-i18n="language.vi">Tiếng Việt</span>
+                                            </button>
+                                            <button type="button" class="language-option" data-language-option="en">
+                                                <span data-i18n="language.en">English</span>
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <hr class="dropdown-divider my-0">
@@ -198,15 +223,15 @@
                                     <!-- Khối 7: Hỗ trợ & Đăng xuất -->
                                     <div class="dropdown-section">
                                         @* <a class="dropdown-item" href="#">Trợ giúp và Hỗ trợ</a> *@
-                                        <a class="dropdown-item fw-semibold" href="@Url.Action("Logout", "Account")">Đăng xuất</a>
+                                        <a class="dropdown-item fw-semibold" href="@Url.Action("Logout", "Account")" data-i18n="nav.logout">Đăng xuất</a>
                                     </div>
                                 }
                                 else
                                 {
                                     <!-- Người dùng chưa đăng nhập -->
                                     <div class="dropdown-section">
-                                        <a class="dropdown-item" href="@Url.Action("Login", "Account")">Đăng nhập</a>
-                                        <a class="dropdown-item" href="@Url.Action("Register", "Account")">Đăng ký</a>
+                                        <a class="dropdown-item" href="@Url.Action("Login", "Account")" data-i18n="nav.login">Đăng nhập</a>
+                                        <a class="dropdown-item" href="@Url.Action("Register", "Account")" data-i18n="nav.register">Đăng ký</a>
                                     </div>
                                 }
                             </div>
@@ -223,18 +248,22 @@
         </main>
     </div>
 
-    <footer class="site-footer text-white py-4">
-        
+    <footer class="site-footer text-white">
+        <div class="footer-inner">
+            <a class="footer-brand" href="@Url.Action("Index", "Home")" aria-label="Ymedu">
+                <img src="~/asset/image/logo/logo.png" alt="Ymedu" width="118" height="72">
+            </a>
 
-            <div class="d-flex justify-content-between align-items-center mt-5 flex-wrap gap-3">
-                <a href="#">
-                    <img src="~/asset/image/logo/logo.png" alt="Udemy Logo" width="150" height="100">
-                </a>
+            <span class="footer-copyright">&copy; 2025 Ymedu, Inc.</span>
 
-                <span class="text-white-50">&copy; 2025 Ymedu, Inc.</span>
-
-                <button class="btn btn-outline-light d-flex align-items-center">
-                    <i class="bi bi-globe me-2"></i> <span>Tiếng Việt</span>
+            <div class="footer-language-switcher" role="group" aria-label="Language">
+                <button type="button" class="language-option" data-language-option="vi">
+                    <i class="bi bi-globe"></i>
+                    <span data-i18n="language.vi">Tiếng Việt</span>
+                </button>
+                <button type="button" class="language-option" data-language-option="en">
+                    <i class="bi bi-globe"></i>
+                    <span data-i18n="language.en">English</span>
                 </button>
             </div>
         </div>
@@ -247,5 +276,45 @@
     <script src="~/js/course-purchase-check.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
     @await Html.PartialAsync("_Toastr")
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                function updateGlobalChatBadge() {
+                    fetch("/api/chat/conversations")
+                        .then(response => {
+                            if (!response.ok) throw new Error("Network response not ok");
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success && data.conversations) {
+                                let totalUnread = 0;
+                                data.conversations.forEach(c => {
+                                    totalUnread += c.unreadCount || 0;
+                                });
+                                const badge = document.getElementById("globalChatUnreadBadge");
+                                if (badge) {
+                                    if (totalUnread > 0) {
+                                        badge.textContent = totalUnread;
+                                        badge.classList.remove("d-none");
+                                    } else {
+                                        badge.classList.add("d-none");
+                                    }
+                                }
+                            }
+                        })
+                        .catch(err => console.error("Lỗi lấy thông tin tin nhắn:", err));
+                }
+
+                updateGlobalChatBadge();
+
+                // Cập nhật định kỳ mỗi 60 giây (ngoài realtime từ SignalR trên trang chat)
+                setInterval(updateGlobalChatBadge, 60000);
+            });
+        </script>
+    }
+
+    @await Html.PartialAsync("_Chatbot")
 </body>
 </html>

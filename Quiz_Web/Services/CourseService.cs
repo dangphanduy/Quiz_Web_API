@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Quiz_Web.Helper;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Models.ViewModels;
@@ -10,11 +11,15 @@ namespace Quiz_Web.Services
 	{
 		private readonly LearningPlatformContext _context;
 		private readonly ILogger<CourseService> _logger;
+		private readonly IRecommendationService _recommendationService;
 
-		public CourseService(LearningPlatformContext context, ILogger<CourseService> logger)
+		public CourseService(
+			LearningPlatformContext context,
+			ILogger<CourseService> logger)
 		{
 			_context = context;
 			_logger = logger;
+			_recommendationService = new RecommendationService();
 		}
 
 		public List<Course> GetAllPublishedCourses()
@@ -139,7 +144,7 @@ namespace Quiz_Web.Services
 					Price = model.Price ?? 0,
 					//Currency = model.Currency,
 					IsPublished = model.IsPublished,
-					CreatedAt = DateTime.Now
+					CreatedAt = DateTimeHelper.Now
 				};
 
 				_context.Courses.Add(course);
@@ -228,7 +233,7 @@ namespace Quiz_Web.Services
 				//course.Currency = model.Currency;
 				course.IsPublished = model.IsPublished;
 				course.CoverUrl = model.CoverUrl;
-				course.UpdatedAt = DateTime.UtcNow;
+				course.UpdatedAt = DateTimeHelper.Now;
 
 				_context.SaveChanges();
 				return course;
@@ -289,6 +294,8 @@ namespace Quiz_Web.Services
 
 		public Course? CreateCourseWithStructure(CourseBuilderViewModel model, int ownerId)
 		{
+			RepairBuilderText(model);
+
 			using var transaction = _context.Database.BeginTransaction();
 			try
 			{
@@ -303,7 +310,7 @@ namespace Quiz_Web.Services
 					CoverUrl = model.CoverUrl,
 					Price = model.Price ?? 0,
 					IsPublished = model.IsPublished,
-					CreatedAt = DateTime.UtcNow
+					CreatedAt = DateTimeHelper.Now
 				};
 
 				_context.Courses.Add(course);
@@ -332,7 +339,7 @@ namespace Quiz_Web.Services
 							Description = lessonVM.Description,
 							OrderIndex = lessonVM.OrderIndex,
 							Visibility = lessonVM.Visibility,
-							CreatedAt = DateTime.UtcNow
+							CreatedAt = DateTimeHelper.Now
 						};
 
 						_context.Lessons.Add(lesson);
@@ -351,7 +358,7 @@ namespace Quiz_Web.Services
 									Title = contentVM.FlashcardSetTitle ?? contentVM.Title ?? "Untitled Flashcard Set",
 									Description = contentVM.FlashcardSetDesc,
 									Visibility = "Course", // Course-only visibility
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -368,7 +375,7 @@ namespace Quiz_Web.Services
 										BackText = flashcardVM.BackText,
 										Hint = flashcardVM.Hint,
 										OrderIndex = flashcardVM.OrderIndex,
-										CreatedAt = DateTime.UtcNow
+										CreatedAt = DateTimeHelper.Now
 									};
 
 									_context.Flashcards.Add(flashcard);
@@ -406,7 +413,7 @@ namespace Quiz_Web.Services
 									ShuffleQuestions = false,
 									ShuffleOptions = false,
 									GradingMode = "Auto",
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -458,8 +465,9 @@ namespace Quiz_Web.Services
 								Title = contentVM.Title,
 								Body = contentVM.Body,
 								VideoUrl = contentVM.VideoUrl,
+								DocumentUrl = contentVM.DocumentUrl,
 								OrderIndex = contentVM.OrderIndex,
-								CreatedAt = DateTime.UtcNow
+								CreatedAt = DateTimeHelper.Now
 							};
 
 							_context.LessonContents.Add(content);
@@ -481,6 +489,8 @@ namespace Quiz_Web.Services
 
 		public Course? UpdateCourseStructure(int courseId, CourseBuilderViewModel model, int ownerId)
 		{
+			RepairBuilderText(model);
+
 			using var transaction = _context.Database.BeginTransaction();
 			try
 			{
@@ -500,7 +510,7 @@ namespace Quiz_Web.Services
 				course.CoverUrl = model.CoverUrl;
 				course.Price = model.Price ?? 0;
 				course.IsPublished = model.IsPublished;
-				course.UpdatedAt = DateTime.UtcNow;
+				course.UpdatedAt = DateTimeHelper.Now;
 
 				// Collect RefIds of FlashcardSets and Tests to delete
 				var flashcardSetIdsToDelete = new List<int>();
@@ -575,7 +585,7 @@ namespace Quiz_Web.Services
 							Description = lessonVM.Description,
 							OrderIndex = lessonVM.OrderIndex,
 							Visibility = lessonVM.Visibility,
-							CreatedAt = DateTime.UtcNow
+							CreatedAt = DateTimeHelper.Now
 						};
 
 						_context.Lessons.Add(lesson);
@@ -594,7 +604,7 @@ namespace Quiz_Web.Services
 									Title = contentVM.FlashcardSetTitle ?? contentVM.Title ?? "Untitled Flashcard Set",
 									Description = contentVM.FlashcardSetDesc,
 									Visibility = "Course",
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -611,7 +621,7 @@ namespace Quiz_Web.Services
 										BackText = flashcardVM.BackText,
 										Hint = flashcardVM.Hint,
 										OrderIndex = flashcardVM.OrderIndex,
-										CreatedAt = DateTime.UtcNow
+										CreatedAt = DateTimeHelper.Now
 									};
 
 									_context.Flashcards.Add(flashcard);
@@ -649,7 +659,7 @@ namespace Quiz_Web.Services
 									ShuffleQuestions = false,
 									ShuffleOptions = false,
 									GradingMode = "Auto",
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -701,8 +711,9 @@ namespace Quiz_Web.Services
 								Title = contentVM.Title,
 								Body = contentVM.Body,
 								VideoUrl = contentVM.VideoUrl, // ADD THIS LINE
+								DocumentUrl = contentVM.DocumentUrl,
 								OrderIndex = contentVM.OrderIndex,
-								CreatedAt = DateTime.UtcNow
+								CreatedAt = DateTimeHelper.Now
 							};
 
 							_context.LessonContents.Add(content);
@@ -779,6 +790,7 @@ namespace Quiz_Web.Services
 									Title = lc.Title,
 									Body = lc.Body,
 									VideoUrl = lc.VideoUrl,
+									DocumentUrl = lc.DocumentUrl,
 									OrderIndex = lc.OrderIndex
 								};
 
@@ -869,7 +881,7 @@ namespace Quiz_Web.Services
 						course.CategoryId = model.CategoryId;
 						course.CoverUrl = model.CoverUrl;
 						course.Price = model.Price ?? 0;
-						course.UpdatedAt = DateTime.UtcNow;
+						course.UpdatedAt = DateTimeHelper.Now;
 						_context.SaveChanges();
 						return true;
 					}
@@ -894,7 +906,7 @@ namespace Quiz_Web.Services
 						CoverUrl = model.CoverUrl,
 						Price = model.Price ?? 0,
 						IsPublished = false,
-						CreatedAt = DateTime.UtcNow
+						CreatedAt = DateTimeHelper.Now
 					};
 					_context.Courses.Add(course);
 					_context.SaveChanges();
@@ -977,6 +989,158 @@ namespace Quiz_Web.Services
 					.OrderByDescending(c => c.CreatedAt)
 					.Take(count)
 					.ToList();
+			}
+		}
+
+		public List<Course> GetRelatedCourses(int courseId, int count = 6)
+		{
+			try
+			{
+				var currentCourse = _context.Courses
+					.AsNoTracking()
+					.FirstOrDefault(c => c.CourseId == courseId);
+
+				if (currentCourse == null || count <= 0)
+					return new List<Course>();
+
+				var allPublishedCourses = _context.Courses
+					.AsNoTracking()
+					.Include(c => c.Owner)
+					.Include(c => c.Category)
+					.Include(c => c.CoursePurchases)
+					.AsSplitQuery()
+					.Where(c => c.IsPublished)
+					.ToList();
+
+				return _recommendationService.GetRelatedCourses(
+					currentCourse,
+					allPublishedCourses,
+					count);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error getting related courses for course {CourseId}", courseId);
+				return new List<Course>();
+			}
+		}
+
+		public List<Course> GetNextCoursesToLearn(int userId, int count = 10)
+		{
+			try
+			{
+				if (userId <= 0 || count <= 0)
+					return new List<Course>();
+
+				// Bộ lọc loại trừ gồm khóa đã thanh toán và mọi khóa đã học.
+				var purchasedCourseIds = _context.CoursePurchases
+					.AsNoTracking()
+					.Where(purchase =>
+						purchase.BuyerId == userId &&
+						purchase.Status == "Paid")
+					.Select(purchase => purchase.CourseId)
+					.ToList();
+
+				var studiedCourseIds = _context.CourseProgresses
+					.AsNoTracking()
+					.Where(progress => progress.UserId == userId)
+					.Select(progress => progress.CourseId)
+					.Distinct()
+					.ToList();
+
+				var userEnrolledCourseIds = purchasedCourseIds
+					.Concat(studiedCourseIds)
+					.Distinct()
+					.ToList();
+
+				// CourseProgress được lưu theo từng nội dung. Một khóa hoàn thành
+				// khi tất cả LessonContent đều có bản ghi IsCompleted = true.
+				var completedProgress = _context.CourseProgresses
+					.AsNoTracking()
+					.Where(progress =>
+						progress.UserId == userId &&
+						progress.IsCompleted)
+					.Select(progress => new
+					{
+						progress.CourseId,
+						progress.ContentId,
+						progress.CompletionAt
+					})
+					.ToList();
+
+				Course? recentlyCompletedCourse = null;
+
+				if (completedProgress.Count > 0)
+				{
+					var progressByCourse = completedProgress
+						.GroupBy(progress => progress.CourseId)
+						.ToDictionary(
+							group => group.Key,
+							group => new
+							{
+								CompletedContentCount = group
+									.Select(progress => progress.ContentId)
+									.Distinct()
+									.Count(),
+								LastCompletionAt = group.Max(progress => progress.CompletionAt)
+							});
+
+					var candidateCourseIds = progressByCourse.Keys.ToList();
+					var contentCounts = _context.Courses
+						.AsNoTracking()
+						.Where(course => candidateCourseIds.Contains(course.CourseId))
+						.Select(course => new
+						{
+							course.CourseId,
+							TotalContentCount = course.CourseChapters
+								.SelectMany(chapter => chapter.Lessons)
+								.SelectMany(lesson => lesson.LessonContents)
+								.Count()
+						})
+						.ToList();
+
+					var recentlyCompletedCourseId = contentCounts
+						.Where(item =>
+							item.TotalContentCount > 0 &&
+							progressByCourse[item.CourseId].CompletedContentCount >=
+								item.TotalContentCount)
+						.OrderByDescending(item =>
+							progressByCourse[item.CourseId].LastCompletionAt ??
+							DateTime.MinValue)
+						.Select(item => (int?)item.CourseId)
+						.FirstOrDefault();
+
+					if (recentlyCompletedCourseId.HasValue)
+					{
+						recentlyCompletedCourse = _context.Courses
+							.AsNoTracking()
+							.FirstOrDefault(course =>
+								course.CourseId == recentlyCompletedCourseId.Value);
+					}
+				}
+
+				var allPublishedCourses = _context.Courses
+					.AsNoTracking()
+					.Include(course => course.Owner)
+					.Include(course => course.Category)
+					.Include(course => course.CoursePurchases)
+					.AsSplitQuery()
+					.Where(course => course.IsPublished)
+					.ToList();
+
+				return _recommendationService.GetNextCoursesToLearn(
+					userId,
+					recentlyCompletedCourse,
+					userEnrolledCourseIds,
+					allPublishedCourses,
+					count);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(
+					ex,
+					"Error getting next courses to learn for user {UserId}",
+					userId);
+				return new List<Course>();
 			}
 		}
 
@@ -1078,6 +1242,34 @@ namespace Quiz_Web.Services
 					.OrderByDescending(c => c.CreatedAt)
 					.Take(count)
 					.ToList();
+			}
+		}
+
+		private static void RepairBuilderText(CourseBuilderViewModel model)
+		{
+			model.Title = TextEncodingRepair.Repair(model.Title) ?? model.Title;
+			model.Summary = TextEncodingRepair.Repair(model.Summary);
+
+			foreach (var chapter in model.Chapters)
+			{
+				chapter.Title = TextEncodingRepair.Repair(chapter.Title) ?? chapter.Title;
+				chapter.Description = TextEncodingRepair.Repair(chapter.Description);
+
+				foreach (var lesson in chapter.Lessons)
+				{
+					lesson.Title = TextEncodingRepair.Repair(lesson.Title) ?? lesson.Title;
+					lesson.Description = TextEncodingRepair.Repair(lesson.Description);
+
+					foreach (var content in lesson.Contents)
+					{
+						content.Title = TextEncodingRepair.Repair(content.Title);
+						content.Body = TextEncodingRepair.Repair(content.Body);
+						content.FlashcardSetTitle = TextEncodingRepair.Repair(content.FlashcardSetTitle);
+						content.FlashcardSetDesc = TextEncodingRepair.Repair(content.FlashcardSetDesc);
+						content.TestTitle = TextEncodingRepair.Repair(content.TestTitle);
+						content.TestDesc = TextEncodingRepair.Repair(content.TestDesc);
+					}
+				}
 			}
 		}
 	}

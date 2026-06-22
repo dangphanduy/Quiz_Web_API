@@ -1,0 +1,67 @@
+@model Quiz_Web.Models.ViewModels.SubscriptionPricingViewModel
+@{
+    ViewData["Title"] = "Bảng giá gói thuê bao";
+}
+
+<section class="container py-5">
+    <div class="text-center mb-5">
+        <span class="badge text-bg-primary mb-3">Học không giới hạn</span>
+        <h1 class="fw-bold">Chọn gói phù hợp với bạn</h1>
+        <p class="text-muted">Một gói thuê bao mở khóa toàn bộ khóa học trên hệ thống.</p>
+    </div>
+
+    @if (Model.CurrentSubscription is not null)
+    {
+        <div class="alert @(Model.DaysRemaining <= 3 ? "alert-warning" : "alert-success") mb-4">
+            Gói <strong>@Model.CurrentSubscription.Plan.Name</strong> còn
+            <strong>@Model.DaysRemaining ngày</strong>, hết hạn lúc
+            @Model.CurrentSubscription.EndDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm").
+        </div>
+    }
+
+    <div class="row g-4 justify-content-center">
+        @foreach (var plan in Model.Plans)
+        {
+            var monthlyPrice = plan.DurationInMonths > 0
+                ? plan.Price / plan.DurationInMonths
+                : plan.Price;
+
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <h3 class="h4 fw-bold">@plan.Name</h3>
+                        <div class="my-3">
+                            <span class="display-6 fw-bold">@plan.Price.ToString("N0") ₫</span>
+                            <div class="text-muted">
+                                khoảng @monthlyPrice.ToString("N0") ₫/tháng
+                            </div>
+                        </div>
+                        <ul class="list-unstyled flex-grow-1">
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Xem toàn bộ khóa học</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Thời hạn @plan.DurationInMonths tháng</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Giữ nguyên khóa học đã mua lẻ</li>
+                        </ul>
+
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <button type="button" class="btn btn-primary w-100 btn-subscription-payos" data-plan-id="@plan.Id">
+                                @(Model.CurrentSubscription is null ? "Đăng ký ngay" : "Gia hạn ngay")
+                            </button>
+                        }
+                        else
+                        {
+                            <a asp-controller="Account"
+                               asp-action="Login"
+                               asp-route-returnUrl="/pricing"
+                               class="btn btn-primary w-100">Đăng nhập để đăng ký</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/payment.js" asp-append-version="true"></script>
+}

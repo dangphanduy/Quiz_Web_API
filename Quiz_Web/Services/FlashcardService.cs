@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Models.ViewModels;
@@ -169,7 +169,7 @@ namespace Quiz_Web.Services
                     CoverUrl = model.CoverUrl,
                     TagsText = model.TagsText,
                     Language = model.Language,
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = DateTimeHelper.Now,
                     IsDeleted = false
                 };
 
@@ -200,7 +200,7 @@ namespace Quiz_Web.Services
                 flashcardSet.CoverUrl = model.CoverUrl ?? flashcardSet.CoverUrl;
                 flashcardSet.TagsText = model.TagsText;
                 flashcardSet.Language = model.Language;
-                flashcardSet.UpdatedAt = DateTime.Now;
+                flashcardSet.UpdatedAt = DateTimeHelper.Now;
 
                 _context.SaveChanges();
                 return flashcardSet;
@@ -223,7 +223,7 @@ namespace Quiz_Web.Services
 
                 // Soft delete
                 flashcardSet.IsDeleted = true;
-                flashcardSet.UpdatedAt = DateTime.Now;
+                flashcardSet.UpdatedAt = DateTimeHelper.Now;
 
                 // Try delete physical cover file if stored locally
                 if (!string.IsNullOrWhiteSpace(flashcardSet.CoverUrl) &&
@@ -295,7 +295,7 @@ namespace Quiz_Web.Services
                     BackText = model.BackText,
                     Hint = model.Hint,
                     OrderIndex = model.OrderIndex,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTimeHelper.Now
                 };
 
                 _context.Flashcards.Add(flashcard);
@@ -324,7 +324,7 @@ namespace Quiz_Web.Services
                 flashcard.BackText = model.BackText;
                 flashcard.Hint = model.Hint;
                 flashcard.OrderIndex = model.OrderIndex;
-                flashcard.UpdatedAt = DateTime.Now;
+                flashcard.UpdatedAt = DateTimeHelper.Now;
 
                 _context.SaveChanges();
                 return flashcard;

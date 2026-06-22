@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta name="description" content="Ymedu is a modern learning management system built with ASP.NET Core.">
@@ -53,6 +53,7 @@
             background-color: #f8d7da;
         }
     </style>
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="app sidebar-mini">
     <!-- Navbar-->
@@ -190,7 +191,7 @@
                     <li><a class="treeview-item" href="@Url.Action("Categories", "Admin")"><i class="icon bi bi-tags"></i> Danh mục khóa học</a></li>
                 </ul>
             </li>
-            <li><a class="app-menu__item" href="@Url.Action("Tests", "Admin")"><i class="app-menu__icon bi bi-clipboard-check"></i><span class="app-menu__label">Bài kiểm tra</span></a></li>
+            <li><a class="app-menu__item" href="@Url.Action("FlashcardSets", "Admin")"><i class="app-menu__icon bi bi-card-text"></i><span class="app-menu__label">Quản lý Flashcard</span></a></li>
             <li class="treeview">
                 <a class="app-menu__item" href="#" data-toggle="treeview">
                     <i class="app-menu__icon bi bi-bar-chart"></i>

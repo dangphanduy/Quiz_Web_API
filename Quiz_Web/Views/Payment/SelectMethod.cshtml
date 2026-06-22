@@ -36,13 +36,13 @@
                         <div class="payment-methods">
                             <!-- MoMo Payment -->
                             <div class="payment-method-item mb-3">
-                                <input type="radio" class="btn-check" name="payment-method" id="momo" value="momo" checked>
-                                <label class="btn btn-outline-primary w-100 text-start payment-method-label" for="momo">
+                                <input type="radio" class="btn-check" name="payment-method" id="payos" value="payos" checked>
+                                <label class="btn btn-outline-primary w-100 text-start payment-method-label" for="payos">
                                     <div class="d-flex align-items-center">
-                                        <img src="https://developers.momo.vn/v3/img/logo.png" alt="MoMo" class="payment-logo me-3" style="height: 40px;">
+                                        <i class="bi bi-qr-code fs-3 me-3 text-primary"></i>
                                         <div>
-                                            <h6 class="mb-1">Ví điện tử MoMo</h6>
-                                            <small class="text-muted">Thanh toán qua ứng dụng MoMo hoặc quét mã QR</small>
+                                            <h6 class="mb-1">Cổng thanh toán PayOS (VietQR)</h6>
+                                            <small class="text-muted">Thanh toán qua mã QR ngân hàng VietQR</small>
                                         </div>
                                     </div>
                                 </label>
@@ -76,7 +76,7 @@
 
                         <!-- Action Buttons -->
                         <div class="d-grid gap-2 mt-4">
-                            <button type="button" class="btn btn-primary btn-lg" id="btnProceedPayment">
+                            <button type="button" class="btn btn-primary btn-lg btn-payos-payment" id="btnProceedPayment">
                                 <i class="bi bi-check-circle me-2"></i>Tiếp tục thanh toán
                             </button>
                             <a href="/checkout" class="btn btn-outline-secondary">
@@ -91,61 +91,5 @@
 </div>
 
 @section Scripts {
-    <script>
-        document.getElementById('btnProceedPayment').addEventListener('click', async function() {
-            const selectedMethod = document.querySelector('input[name="payment-method"]:checked');
-            
-            if (!selectedMethod) {
-                alert('Vui lòng chọn phương thức thanh toán');
-                return;
-            }
-
-            const method = selectedMethod.value;
-            
-            if (method === 'momo') {
-                await processMoMoPayment();
-            } else {
-                alert('Phương thức thanh toán này chưa được hỗ trợ');
-            }
-        });
-
-        async function processMoMoPayment() {
-            try {
-                const button = document.getElementById('btnProceedPayment');
-                button.disabled = true;
-                button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...';
-
-                const response = await fetch('/payment/momo', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Mở trang thanh toán MoMo trong tab/window mới
-                    window.open(data.payUrl, '_blank');
-                    
-                    // Hiển thị thông báo
-                    alert('Đã mở trang thanh toán MoMo. Vui lòng hoàn tất thanh toán trong tab mới.');
-                    
-                    // Có thể redirect về trang chờ hoặc giữ nguyên
-                    // window.location.href = '/payment/waiting?orderId=' + data.orderId;
-                } else {
-                    alert(data.message || 'Có lỗi xảy ra khi tạo thanh toán');
-                }
-                
-                button.disabled = false;
-                button.innerHTML = '<i class="bi bi-check-circle me-2"></i>Tiếp tục thanh toán';
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra. Vui lòng thử lại sau.');
-                const button = document.getElementById('btnProceedPayment');
-                button.disabled = false;
-                button.innerHTML = '<i class="bi bi-check-circle me-2"></i>Tiếp tục thanh toán';
-            }
-        }
-    </script>
+    <script src="~/js/payment.js" asp-append-version="true"></script>
 }

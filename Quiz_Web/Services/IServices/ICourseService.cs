@@ -40,6 +40,10 @@ namespace Quiz_Web.Services.IServices
 		
 		// Home page recommendations
 		List<Course> GetRecommendedCourses(int userId, int count = 6);
+		List<Course> GetNextCoursesToLearn(int userId, int count = 10);
 		List<Course> GetTopRatedCourses(int count = 6);
+
+		// Contextual recommendations for the course detail page
+		List<Course> GetRelatedCourses(int courseId, int count = 6);
 	}
 }

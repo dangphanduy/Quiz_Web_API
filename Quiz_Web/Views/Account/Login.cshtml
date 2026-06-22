@@ -1,7 +1,18 @@
-﻿@{
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
 	Layout = "_LayoutAccount";
 	ViewData["Title"] = "Login";
 }
+<style>
+	.social-login-btn {
+		transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+		display: inline-block;
+	}
+	.social-login-btn:hover {
+		transform: scale(1.12);
+		opacity: 0.9;
+	}
+</style>
 <section class="container" id="login">
 	<div class="auth-wrapper px-5 mt-5">
 		<div class="auth-image" style="background-image: url('/asset/image/Login.svg');">
@@ -44,6 +55,19 @@
 					</div>
 					<button type="submit" class="btn btn-primary btn-auth">Đăng nhập</button>
 
+					<div class="text-center my-3 text-muted">
+						<small>— Hoặc đăng nhập bằng —</small>
+					</div>
+
+					<div class="d-flex justify-content-center gap-3 mb-2">
+						<a href="javascript:void(0);" class="social-login-btn" id="btnGoogleLogin">
+							<img src="/asset/image/icons/iconLogin/ggicon.png" alt="Google" style="width: 42px; height: 42px;" />
+						</a>
+						<a href="javascript:void(0);" class="social-login-btn" id="btnFacebookLogin">
+							<img src="/asset/image/icons/iconLogin/fbIcon.png" alt="Facebook" style="width: 42px; height: 42px;" />
+						</a>
+					</div>
+
 					@if (ViewBag.Error != null)
 					{
 						<div class="alert alert-danger mt-3">@ViewBag.Error</div>
@@ -54,6 +78,14 @@
 	</div>
 </section>
 @section Scripts {
+	<!-- Google & Facebook Client SDKs -->
+	<script src="https://accounts.google.com/gsi/client" async defer></script>
+	<div id="fb-root"></div>
+	<script async defer crossorigin="anonymous" src="https://connect.facebook.net/vi_VN/sdk.js"></script>
+
+	<!-- Hidden Google Button Wrapper for Programmatic Custom Icon Triggering -->
+	<div id="googleButtonWrapper" style="display: none;"></div>
+
 	<script>
 		const passwordInput = document.getElementById('passwordInput');
 		const togglePassword = document.getElementById('togglePassword');
@@ -65,5 +97,109 @@
 			togglePassword.classList.toggle('fa-eye');
 			togglePassword.classList.toggle('fa-eye-slash');
 		});
+
+		// Google Identity Services Setup
+		window.addEventListener('load', function () {
+			google.accounts.id.initialize({
+				client_id: "@Configuration["Authentication:Google:ClientId"]",
+				callback: handleGoogleCredentialResponse
+			});
+
+			google.accounts.id.renderButton(
+				document.getElementById("googleButtonWrapper"),
+				{ theme: "outline", size: "large" }
+			);
+		});
+
+		function handleGoogleCredentialResponse(response) {
+			loginWithExternalProvider("google", response.credential);
+		}
+
+		// Trigger Google Sign-in popup on custom icon click
+		document.getElementById('btnGoogleLogin').addEventListener('click', function(e) {
+			e.preventDefault();
+			const googleButton = document.getElementById("googleButtonWrapper").querySelector("div[role=button]");
+			if (googleButton) {
+				googleButton.click();
+			} else {
+				google.accounts.id.prompt();
+			}
+		});
+
+		// Facebook SDK Setup
+		window.fbAsyncInit = function() {
+			FB.init({
+				appId      : '@Configuration["Authentication:Facebook:AppId"]',
+				cookie     : true,
+				xfbml      : true,
+				version    : 'v18.0'
+			});
+		};
+
+		// Trigger Facebook login popup on custom icon click
+		document.getElementById('btnFacebookLogin').addEventListener('click', function(e) {
+			e.preventDefault();
+			FB.login(function(response) {
+				if (response.authResponse) {
+					loginWithExternalProvider("facebook", response.authResponse.accessToken);
+				} else {
+					console.log('Facebook login cancelled or not authorized.');
+				}
+			}, {scope: 'public_profile,email'});
+		});
+
+		// Helper to submit tokens to Backend API
+		function loginWithExternalProvider(provider, token) {
+			Swal.fire({
+				title: 'Đang xác thực...',
+				allowOutsideClick: false,
+				didOpen: () => {
+					Swal.showLoading();
+				}
+			});
+
+			fetch('/api/auth/external-login', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					provider: provider,
+					token: token
+				})
+			})
+			.then(response => {
+				if (!response.ok) {
+					throw new Error('Xác thực thất bại.');
+				}
+				return response.json();
+			})
+			.then(data => {
+				if (data.success) {
+					Swal.fire({
+						icon: 'success',
+						title: 'Đăng nhập thành công',
+						timer: 1500,
+						showConfirmButton: false
+					}).then(() => {
+						window.location.href = data.redirectUrl || '/';
+					});
+				} else {
+					Swal.fire({
+						icon: 'error',
+						title: 'Đăng nhập thất bại',
+						text: data.message || 'Tài khoản không hợp lệ.'
+					});
+				}
+			})
+			.catch(error => {
+				console.error("External login error:", error);
+				Swal.fire({
+					icon: 'error',
+					title: 'Lỗi',
+					text: 'Có lỗi xảy ra trong quá trình xác thực.'
+				});
+			});
+		}
 	</script>
 }

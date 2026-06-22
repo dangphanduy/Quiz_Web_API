@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Quiz_Web.Models.Entities;
@@ -127,7 +127,7 @@ namespace Quiz_Web.Controllers
                     return View(model);
                 }
 
-                var folder = $"uploads/flashcards/{DateTime.UtcNow:yyyy/MM}";
+                var folder = $"uploads/flashcards/{DateTimeHelper.Now:yyyy/MM}";
                 var physical = Path.Combine(_env.WebRootPath, folder);
                 Directory.CreateDirectory(physical);
 
@@ -260,7 +260,7 @@ namespace Quiz_Web.Controllers
                     return View("Edit", model);
                 }
 
-                var folder = $"uploads/flashcards/{DateTime.UtcNow:yyyy/MM}";
+                var folder = $"uploads/flashcards/{DateTimeHelper.Now:yyyy/MM}";
                 var physical = Path.Combine(_env.WebRootPath, folder);
                 Directory.CreateDirectory(physical);
 
