@@ -1,11 +1,69 @@
 using Quiz_Web.Services.IServices;
+using System;
+using System.IO;
 using System.Net;
 using System.Net.Mail;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+
+namespace Quiz_Web.Services
+{
+	public class EmailService : IEmailService
+	{
+		private readonly IConfiguration _configuration;
+
+		public EmailService(IConfiguration configuration)
+		{
+			_configuration = configuration;
+		}
+
+		public async Task<bool> SendPasswordResetEmail(string toEmail, string resetLink)
+		{
+			try
+			{
+				var smtpHost = _configuration["EmailSettings:SmtpHost"];
+				var smtpPort = int.Parse(_configuration["EmailSettings:SmtpPort"]);
+				var fromEmail = _configuration["EmailSettings:FromEmail"];
+				var fromPassword = _configuration["EmailSettings:FromPassword"];
+				var fromName = _configuration["EmailSettings:FromName"];
+
+				var mailMessage = new MailMessage
+				{
+					From = new MailAddress(fromEmail, fromName),
+					Subject = "Đặt lại mật khẩu",
+					Body = $@"
+						<html>
+						<body>
+							<div>
+								<p>Bạn nhận được email này vì đã yêu cầu đặt lại mật khẩu cho tài khoản của mình.</p>
+								<p>Vui lòng click vào link sau để đặt lại mật khẩu:</p>
+								<p><a href='{resetLink}'>{resetLink}</a></p>
+								<hr />
+								<p>Nếu không có yêu cầu này, vui lòng bỏ qua email.</p>
+							</div>
+						</body>
+						</html>",
+					IsBodyHtml = true
+				};
+
+				mailMessage.To.Add(toEmail);
+
+				using (var smtpClient = new SmtpClient(smtpHost, smtpPort))
+				{
+					smtpClient.Credentials = new NetworkCredential(fromEmail, fromPassword);
+					smtpClient.EnableSsl = true;
+					await smtpClient.SendMailAsync(mailMessage);
+				}
+				return true;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Lỗi gửi mail reset link: {ex.Message}");
+				return false;
 			}
 		}
 
 		public async Task<bool> SendForgotPasswordCodeEmail(string toEmail, string code)
-		public async Task<bool> SendCertificateEmailAsync(string toEmail, string userName, string courseName, byte[] certificateImageBytes, string fileName)
 		{
 			try
 			{
@@ -21,13 +79,15 @@ using System.Net.Mail;
 					Subject = "Mã xác thực đặt lại mật khẩu",
 					Body = $@"
 						<html>
+						<body>
+							<div>
+								<p>Mã xác thực đặt lại mật khẩu của bạn là: <strong>{code}</strong></p>
 								<p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này và bảo mật tài khoản của mình.</p>
 								<hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;' />
 								<p style='font-size: 12px; color: #777; text-align: center;'>Đây là email tự động, vui lòng không phản hồi email này.</p>
 							</div>
 						</body>
-						</html>
-					",
+						</html>",
 					IsBodyHtml = true
 				};
 
@@ -75,8 +135,7 @@ using System.Net.Mail;
 								<p style='font-size: 12px; color: #777; text-align: center;'>Email này được gửi tự động từ hệ thống ymedu.</p>
 							</div>
 						</body>
-						</html>
-					",
+						</html>",
 					IsBodyHtml = true
 				};
 
@@ -99,7 +158,6 @@ using System.Net.Mail;
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"Lỗi gửi mã OTP qua mail: {ex.Message}");
 				Console.WriteLine($"Lỗi gửi mail chứng chỉ: {ex.Message}");
 				return false;
 			}

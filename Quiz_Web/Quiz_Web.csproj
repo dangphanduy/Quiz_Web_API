@@ -40,4 +40,10 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="appsettings.develop.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
