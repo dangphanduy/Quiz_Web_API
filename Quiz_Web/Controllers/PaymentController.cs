@@ -20,6 +20,7 @@ public class PaymentController : Controller
     private readonly ICourseAccessService _courseAccessService;
     private readonly LearningPlatformContext _context;
     private readonly ILogger<PaymentController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     public PaymentController(
         IPayOSService payOSService,
@@ -27,7 +28,8 @@ public class PaymentController : Controller
         ISubscriptionService subscriptionService,
         ICourseAccessService courseAccessService,
         LearningPlatformContext context,
-        ILogger<PaymentController> logger)
+        ILogger<PaymentController> logger,
+        IWebHostEnvironment environment)
     {
         _payOSService = payOSService;
         _cartService = cartService;
@@ -35,11 +37,14 @@ public class PaymentController : Controller
         _courseAccessService = courseAccessService;
         _context = context;
         _logger = logger;
+        _environment = environment;
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> CreatePayOSPayment(CancellationToken cancellationToken)
+    public async Task<IActionResult> CreatePayOSPayment(
+        [FromBody] CoursePaymentRequest? request,
+        CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         var cartItems = await _cartService.GetCartItemsAsync(userId);
@@ -547,14 +552,25 @@ public class PaymentController : Controller
     public sealed class CoursePaymentRequest
     {
         public List<int> CourseIds { get; set; } = new();
+    }
+
+    [Authorize]
     [HttpPost("Payment/SimulateSuccess")]
-    public async Task<IActionResult> SimulateSuccess([FromBody] SimulateRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SimulateSuccess(
+        [FromBody] SimulateRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
+            if (!_environment.IsDevelopment())
+                return NotFound(new { success = false, message = "Chức năng giả lập chỉ khả dụng ở môi trường Development." });
+
+            var userId = GetCurrentUserId();
             var payment = await _context.Payments
                 .Include(x => x.Order)
-                .FirstOrDefaultAsync(x => x.OrderId == request.OrderId, cancellationToken);
+                .FirstOrDefaultAsync(
+                    x => x.OrderId == request.OrderId && x.Order.BuyerId == userId,
+                    cancellationToken);
 
             if (payment is null)
                 return NotFound(new { success = false, message = "Không tìm thấy giao dịch." });

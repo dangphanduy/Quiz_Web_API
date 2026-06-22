@@ -37,13 +37,13 @@ class PaymentHandler {
         // Xử lý nút thanh toán Subscription
         $(document).on('click', '.btn-subscription-payos', (e) => {
             e.preventDefault();
-            const planId = $(e.target).data('plan-id');
+            const planId = $(e.currentTarget).data('plan-id');
             this.processSubscriptionPayment(planId);
         });
 
         $(document).on('click', '.check-course-access', (e) => {
             e.preventDefault();
-            const courseId = $(e.target).data('course-id');
+            const courseId = $(e.currentTarget).data('course-id');
             this.checkCourseAccess(courseId);
         });
     }
@@ -81,7 +81,7 @@ class PaymentHandler {
         $('#selectedCount, #summarySelectedCount').text(snapshot.selectedCount);
         $('#summarySubtotal, #summaryTotal').text(formattedTotal);
         $('#selectionWarning').toggleClass('d-none', hasSelection);
-        $('.btn-momo-payment').prop('disabled', !hasSelection);
+        $('.btn-payos-payment').prop('disabled', !hasSelection);
 
         const selectAll = $('#selectAllCourses');
         if (selectAll.length) {
@@ -92,6 +92,13 @@ class PaymentHandler {
     }
 
     async processPayOSPayment() {
+        const selectedCourseIds = this.getSelectedCourseIds();
+        if (!selectedCourseIds.length) {
+            this.showError('Vui lòng chọn ít nhất một khóa học để thanh toán');
+            this.updateCheckoutSummary();
+            return;
+        }
+
         try {
             this.showLoading('Đang tạo thanh toán...');
 
@@ -173,6 +180,7 @@ class PaymentHandler {
     showQRCode(qrCodeUrl, orderId, amount, description, payUrl) {
         // Đảm bảo xóa modal cũ nếu có
         $('#qrCodeModal').remove();
+        const showSimulator = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
 
         const modal = `
             <div class="modal fade" id="qrCodeModal" tabindex="-1">
@@ -195,9 +203,11 @@ class PaymentHandler {
                                 <i class="fas fa-info-circle me-1"></i> Sử dụng App Ngân hàng quét mã QR trên để thanh toán nhanh, hoặc mở link cổng PayOS chính thức.
                             </div>
                             <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-success btn-lg id-btn-simulate-success">
-                                    <i class="fas fa-check-circle me-2"></i>Giả lập thanh toán thành công
-                                </button>
+                                ${showSimulator ? `
+                                    <button type="button" class="btn btn-success btn-lg id-btn-simulate-success">
+                                        <i class="fas fa-check-circle me-2"></i>Giả lập thanh toán thành công
+                                    </button>
+                                ` : ''}
                                 <a href="${payUrl}" target="_blank" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-external-link-alt me-2"></i>Mở trang thanh toán PayOS thật
                                 </a>
