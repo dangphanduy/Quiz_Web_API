@@ -37,7 +37,10 @@ public class ChatbotApiController : ControllerBase
         var userMessage = request.Message.Trim();
 
         // 1. Kiểm tra Cache
-        var cacheKey = $"chatbot_{userMessage.ToLower().GetHashCode()}";
+        var cacheKey = request.LessonId.HasValue 
+            ? $"chatbot_lesson_{request.LessonId.Value}_{userMessage.ToLower().GetHashCode()}"
+            : $"chatbot_{userMessage.ToLower().GetHashCode()}";
+
         if (_cache.TryGetValue(cacheKey, out string? cachedResponse))
         {
             return Ok(new { response = cachedResponse, fromCache = true });
@@ -46,14 +49,99 @@ public class ChatbotApiController : ControllerBase
         // 2. Kiểm tra câu hỏi có quá chung chung hay không
         if (IsTooGeneral(userMessage))
         {
-            var generalResponse = "Chào bạn! Bạn đang tìm kiếm khóa học thuộc chủ đề nào (ví dụ: frontend, backend, database, di động) hay cấp độ nào (cơ bản, nâng cao)? Hãy cung cấp thêm thông tin để mình hỗ trợ tốt nhất nhé.";
-            return Ok(new { response = generalResponse, fromCache = false });
+            if (request.LessonId.HasValue)
+            {
+                var lessonGreeting = "Chào bạn! Mình là Trợ lý học tập AI. Mình có thể giúp bạn tóm tắt bài học, giải thích các khái niệm khó hoặc tài liệu PDF của bài học này. Bạn cần mình hỗ trợ gì nào?";
+                return Ok(new { response = lessonGreeting, fromCache = false });
+            }
+            else
+            {
+                var generalResponse = "Chào bạn! Bạn đang tìm kiếm khóa học thuộc chủ đề nào (ví dụ: frontend, backend, database, di động) hay cấp độ nào (cơ bản, nâng cao)? Hãy cung cấp thêm thông tin để mình hỗ trợ tốt nhất nhé.";
+                return Ok(new { response = generalResponse, fromCache = false });
+            }
         }
 
-        // 3. Trích xuất từ khóa từ câu hỏi người dùng
+        // 2.1 Kiểm tra câu hỏi có liên quan đến học tập/hệ thống hay không
+        if (!IsRelevantQuery(userMessage))
+        {
+            var irrelevantResponse = "Chào bạn! Mình là Trợ lý học tập AI của hệ thống. Hiện tại mình chỉ hỗ trợ giải đáp các câu hỏi liên quan đến nội dung bài học, tài liệu lý thuyết, tư vấn khóa học và thông tin trên hệ thống. Bạn vui lòng đặt câu hỏi liên quan nhé! 😊";
+            return Ok(new { response = irrelevantResponse, fromCache = false });
+        }
+
+        // 3. Nếu là bối cảnh bài học cụ thể
+        if (request.LessonId.HasValue)
+        {
+            var lesson = await _context.Lessons
+                .AsNoTracking()
+                .Include(l => l.Chapter)
+                    .ThenInclude(c => c.Course)
+                .Include(l => l.LessonContents)
+                .FirstOrDefaultAsync(l => l.LessonId == request.LessonId.Value);
+
+            if (lesson != null)
+            {
+                var theoryContents = lesson.LessonContents
+                    .Where(c => c.ContentType == "Theory")
+                    .OrderBy(c => c.OrderIndex)
+                    .ToList();
+
+                if (!theoryContents.Any())
+                {
+                    var noTheoryResponse = "Bài học này hiện không có tài liệu lý thuyết để giải thích hoặc tóm tắt. Bạn có câu hỏi nào khác không?";
+                    return Ok(new { response = noTheoryResponse, fromCache = false });
+                }
+
+                var contextBuilder = new StringBuilder();
+                contextBuilder.AppendLine($"[Bối cảnh bài học đang học]:");
+                contextBuilder.AppendLine($"- Khóa học: {lesson.Chapter.Course.Title}");
+                contextBuilder.AppendLine($"- Chương: {lesson.Chapter.Title}");
+                contextBuilder.AppendLine($"- Bài học: {lesson.Title}");
+                if (!string.IsNullOrEmpty(lesson.Description))
+                {
+                    contextBuilder.AppendLine($"- Mô tả bài học: {lesson.Description}");
+                }
+                contextBuilder.AppendLine();
+                contextBuilder.AppendLine("[Nội dung lý thuyết (Text)]:");
+
+                foreach (var content in theoryContents)
+                {
+                    if (!string.IsNullOrEmpty(content.Body))
+                    {
+                        var cleanBody = System.Text.RegularExpressions.Regex.Replace(content.Body, "<.*?>", string.Empty).Trim();
+                        contextBuilder.AppendLine($"-- Tiêu đề: {content.Title ?? "Nội dung"} --");
+                        contextBuilder.AppendLine(cleanBody);
+                        contextBuilder.AppendLine();
+                    }
+                }
+
+                // Lấy file PDF đính kèm (nếu có)
+                var pdfContent = theoryContents.FirstOrDefault(c => !string.IsNullOrEmpty(c.DocumentUrl) && c.DocumentUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase));
+                var pdfUrl = pdfContent?.DocumentUrl;
+
+                var systemInstruction = $"Bạn là AI Study Assistant - Trợ lý học tập thông minh trên hệ thống.\n" +
+                                        $"Học viên đang học bài học '{lesson.Title}' thuộc chương '{lesson.Chapter.Title}', khóa học '{lesson.Chapter.Course.Title}'.\n" +
+                                        $"Nhiệm vụ chính của bạn là giải thích chi tiết các kiến thức, khái niệm, thuật ngữ và tóm tắt nội dung lý thuyết hoặc tài liệu PDF đính kèm của bài học này dựa trên bối cảnh và tài liệu được cung cấp.\n" +
+                                        $"QUY TẮC BẮT BUỘC:\n" +
+                                        $"1. Tuyệt đối KHÔNG giải bài tập hộ, không trả lời các câu hỏi kiểm tra/trắc nghiệm/thi (Quiz/Test) của học viên, không tiết lộ đáp án trực tiếp. Nếu học viên hỏi đáp án bài tập hoặc quiz, hãy từ chối lịch sự và hướng dẫn họ cách tự làm, gợi ý các phần tài liệu liên quan để tự học.\n" +
+                                        $"2. Trả lời bằng tiếng Việt, mạch lạc, dễ hiểu, định dạng markdown đẹp mắt (in đậm, danh sách dòng,...) để học viên dễ đọc.\n" +
+                                        $"3. Tập trung sát vào nội dung bài học. Nếu học viên hỏi những câu hỏi hoàn toàn ngoài lề không liên quan tới học tập hoặc bài học này, hãy khéo léo từ chối và hướng họ quay lại bài học.";
+
+                var responseText = await _geminiService.GetResponseAsync(userMessage, contextBuilder.ToString(), pdfUrl, systemInstruction);
+
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(2));
+
+                _cache.Set(cacheKey, responseText, cacheEntryOptions);
+
+                return Ok(new { response = responseText, fromCache = false });
+            }
+        }
+
+        // 4. Trích xuất từ khóa từ câu hỏi người dùng (cho tìm kiếm khóa học thông thường)
         var keywords = ExtractKeywords(userMessage);
 
-        // 4. Query Database giới hạn số lượng kết quả (Top 5) có sử dụng Index
+        // 5. Query Database giới hạn số lượng kết quả (Top 5) có sử dụng Index
         var query = _context.Courses.AsNoTracking().Where(c => c.IsPublished);
 
         if (keywords.Any())
@@ -95,32 +183,32 @@ public class ChatbotApiController : ControllerBase
             })
             .ToListAsync();
 
-        // 5. Chuẩn bị context rút gọn để gửi qua Gemini API
-        var contextBuilder = new StringBuilder();
-        contextBuilder.AppendLine("Dưới đây là danh sách tối đa 5 khóa học phù hợp nhất từ hệ thống:");
+        // 6. Chuẩn bị context rút gọn để gửi qua Gemini API
+        var generalContextBuilder = new StringBuilder();
+        generalContextBuilder.AppendLine("Dưới đây là danh sách tối đa 5 khóa học phù hợp nhất từ hệ thống:");
         if (courses.Any())
         {
             foreach (var course in courses)
             {
-                contextBuilder.AppendLine($"- ID: {course.CourseId}, Tên: '{course.Title}', Tóm tắt: '{course.Summary ?? "Không có"}', Giá: {course.Price:N0}đ, Đánh giá trung bình: {course.AverageRating}/5 ({course.TotalReviews} đánh giá)");
+                generalContextBuilder.AppendLine($"- ID: {course.CourseId}, Tên: '{course.Title}', Tóm tắt: '{course.Summary ?? "Không có"}', Giá: {course.Price:N0}đ, Đánh giá trung bình: {course.AverageRating}/5 ({course.TotalReviews} đánh giá)");
             }
         }
         else
         {
-            contextBuilder.AppendLine("(Không tìm thấy khóa học nào khớp với từ khóa tìm kiếm trực tiếp trong database. Vui lòng hướng dẫn người dùng thử tìm kiếm bằng từ khóa khác hoặc tư vấn các chủ đề công nghệ chung).");
+            generalContextBuilder.AppendLine("(Không tìm thấy khóa học nào khớp với từ khóa tìm kiếm trực tiếp trong database. Vui lòng hướng dẫn người dùng thử tìm kiếm bằng từ khóa khác hoặc tư vấn các chủ đề công nghệ chung).");
         }
 
-        // 6. Gửi prompt và context sang Gemini API
-        var responseText = await _geminiService.GetResponseAsync(userMessage, contextBuilder.ToString());
+        // 7. Gửi prompt và context sang Gemini API
+        var generalResponseText = await _geminiService.GetResponseAsync(userMessage, generalContextBuilder.ToString());
 
-        // 7. Lưu kết quả vào Cache
-        var cacheEntryOptions = new MemoryCacheEntryOptions()
+        // 8. Lưu kết quả vào Cache
+        var generalCacheEntryOptions = new MemoryCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
             .SetSlidingExpiration(TimeSpan.FromMinutes(2));
 
-        _cache.Set(cacheKey, responseText, cacheEntryOptions);
+        _cache.Set(cacheKey, generalResponseText, generalCacheEntryOptions);
 
-        return Ok(new { response = responseText, fromCache = false });
+        return Ok(new { response = generalResponseText, fromCache = false });
     }
 
     private bool IsTooGeneral(string message)
@@ -150,9 +238,30 @@ public class ChatbotApiController : ControllerBase
 
         return keywords.Distinct().Take(3).ToList(); // Lấy tối đa 3 từ khóa chính để tối ưu query
     }
+    private bool IsRelevantQuery(string message)
+    {
+        var cleaned = message.Trim().ToLower();
+
+        // Danh sách từ khóa liên quan đến Công nghệ / Lập trình / Bài học / Hệ thống / Xã giao bot
+        var relevantKeywords = new[]
+        {
+            // Lập trình & Công nghệ
+            "api", "sql", "c#", "csharp", "python", "java", "javascript", "js", "html", "css", "react", "vue", "angular", "database", "dữ liệu", "git", "docker", "kubernetes", "web", "frontend", "backend", "mobile", "android", "ios", "flutter", "swift", "kotlin", "lập trình", "code", "vòng lặp", "hàm", "class", "biến", "mảng", "chuỗi", "oop", "thuật toán", "cấu trúc dữ liệu", "net core", "asp.net",
+            // Học tập & Bài học
+            "học", "khóa học", "khoá học", "bài học", "bài tập", "lý thuyết", "tài liệu", "pdf", "slide", "video", "flashcard", "test", "quiz", "thi", "kiểm tra", "đáp án", "chương", "giáo trình", "ôn tập", "kiến thức", "tóm tắt", "giải thích", "tư vấn", "gợi ý", "lớp", "giảng viên", "thầy", "cô", "chủ đề",
+            // Hệ thống & Tài khoản
+            "giá", "tiền", "mua", "nạp", "đăng ký", "đăng kí", "thanh toán", "chuyển khoản", "tài khoản", "mật khẩu", "chứng chỉ", "chứng nhận", "certificate", "đánh giá", "rating", "review", "hỗ trợ", "help", "cách dùng", "thao tác", "lỗi",
+            // Giao tiếp thông thường & Xã giao bot
+            "chào", "hello", "hi", "cảm ơn", "cám ơn", "tạm biệt", "ok", "oke", "được không", "giúp", "trợ lý", "trợ lí", "assistant", "chatbot", "ai", "bạn là", "mày là", "là ai", "giới thiệu"
+        };
+
+        // Nếu câu hỏi chứa bất kỳ từ khóa liên quan nào, coi là hợp lệ
+        return relevantKeywords.Any(keyword => cleaned.Contains(keyword));
+    }
 }
 
 public class ChatbotRequest
 {
     public string Message { get; set; } = string.Empty;
+    public int? LessonId { get; set; }
 }

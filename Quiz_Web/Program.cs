@@ -196,7 +196,10 @@ builder.Services.AddScoped<ICourseAccessService, CourseAccessService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient<IGeminiService, GeminiService>();
+builder.Services.AddHttpClient<IGeminiService, GeminiService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddSignalR();
 builder.Services.AddSingleton(TimeProvider.System);
 
