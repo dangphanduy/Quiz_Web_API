@@ -32,6 +32,15 @@ public class CourseAccessService : ICourseAccessService
             return true;
 
         // Bước 2: chỉ chạy khi chưa mua lẻ. Không Include/ToList nên phù hợp với request xem video.
+        var isFreePublishedCourse = await _context.Courses
+            .AsNoTracking()
+            .AnyAsync(x => x.CourseId == courseId &&
+                           x.IsPublished &&
+                           x.Price <= 0, cancellationToken);
+
+        if (isFreePublishedCourse)
+            return true;
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         return await _context.UserSubscriptions
             .AsNoTracking()

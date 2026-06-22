@@ -265,7 +265,13 @@
                                                 <span class="btn btn-outline-primary flex-fill" style="white-space: nowrap;">
                                                     Xem chi tiết
                                                 </span>
-                                                @if (accessibleCourseIds.Contains(course.CourseId))
+                                                @if (course.Price == 0)
+                                                {
+                                                    <span class="btn btn-success disabled" title="Khóa học miễn phí">
+                                                        <i class="fas fa-play-circle"></i>
+                                                    </span>
+                                                }
+                                                else if (accessibleCourseIds.Contains(course.CourseId))
                                                 {
                                                     <span class="btn btn-success disabled" title="Đã có quyền truy cập">
                                                         <i class="fas fa-check-circle"></i> Đã mua

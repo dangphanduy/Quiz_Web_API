@@ -592,7 +592,7 @@
 								}
 
 								<div class="d-grid gap-2 mt-3">
-									@if (hasCourseAccess)
+									@if (hasCourseAccess || Model.Price == 0)
 									{
 										<a asp-controller="Course" asp-action="Learn" asp-route-slug="@Model.Slug"
 										   class="btn btn-primary btn-lg">
@@ -669,7 +669,7 @@
 					<div class="price-mobile">₫@Model.Price.ToString("N0")</div>
 				}
 			</div>
-			@if (hasCourseAccess)
+			@if (hasCourseAccess || Model.Price == 0)
 			{
 				<div class="d-flex gap-2">
 					<a asp-controller="Course" asp-action="Learn" asp-route-slug="@Model.Slug"

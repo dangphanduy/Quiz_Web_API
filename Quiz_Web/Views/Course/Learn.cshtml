@@ -1,3 +1,4 @@
+@using Quiz_Web.Helper
 @{
     ViewData["Title"] = ViewBag.CurrentLesson?.Title ?? "Xem bài học";
     Layout = "~/Views/Shared/_LayoutLearn.cshtml";
@@ -6,6 +7,8 @@
     var currentChapter = ViewBag.CurrentChapter as Quiz_Web.Models.Entities.CourseChapter;
     var currentLesson = ViewBag.CurrentLesson as Quiz_Web.Models.Entities.Lesson;
     var isOwner = (bool)(ViewBag.IsOwner ?? false);
+    Func<string?, string> repairText = value => TextEncodingRepair.Repair(value) ?? string.Empty;
+    ViewData["Title"] = repairText(currentLesson?.Title) is { Length: > 0 } repairedTitle ? repairedTitle : "Xem bài học";
 }
 
 @section Styles {
@@ -178,7 +181,7 @@
 
             <!-- Lesson Title & Navigation -->
             <div class="lesson-header">
-                <h3 class="lesson-title">@currentLesson?.Title</h3>
+                <h3 class="lesson-title">@repairText(currentLesson?.Title)</h3>
                 <div class="lesson-navigation">
                     <button class="btn btn-outline-primary" id="prevLessonBtn" title="Bài học trước">
                         <i class="fas fa-chevron-left me-1"></i> Trước
@@ -208,7 +211,7 @@
                                             <i class="fas fa-book"></i>
                                         </div>
                                         <div class="content-info">
-                                            <h5 class="content-title">@(content.Title ?? "Lý thuyết")</h5>
+                                            <h5 class="content-title">@(repairText(content.Title) is { Length: > 0 } contentTitle ? contentTitle : "Lý thuyết")</h5>
                                             <span class="content-type-badge theory">Lý thuyết</span>
                                         </div>
                                     </div>
@@ -249,7 +252,7 @@
                                             <i class="fas fa-layer-group"></i>
                                         </div>
                                         <div class="content-info">
-                                            <h5 class="content-title">@(content.Title ?? "Bộ flashcard")</h5>
+                                            <h5 class="content-title">@(repairText(content.Title) is { Length: > 0 } contentTitle ? contentTitle : "Bộ flashcard")</h5>
                                             <span class="content-type-badge theory">Flashcard</span>
                                         </div>
                                     </div>
@@ -346,7 +349,7 @@
                                             <i class="fas fa-clipboard-check"></i>
                                         </div>
                                         <div class="content-info">
-                                            <h5 class="content-title">@(content.Title ?? "Bài kiểm tra")</h5>
+                                            <h5 class="content-title">@(repairText(content.Title) is { Length: > 0 } contentTitle ? contentTitle : "Bài kiểm tra")</h5>
                                             <span class="content-type-badge theory">Kiểm tra</span>
                                         </div>
                                     </div>
@@ -556,7 +559,7 @@
                                         <div class="chapter-info">
                                             <div class="chapter-title">
                                                 <i class="fas fa-folder-open me-2"></i>
-                                                @chapter.Title
+                                                @repairText(chapter.Title)
                                             </div>
                                             <div class="chapter-stats">
                                                 <small class="text-muted">@chapterLessons.Count bài học</small>
@@ -591,7 +594,7 @@
                                                             }
                                                         </div>
                                                         <div class="lesson-info-item">
-                                                            <div class="lesson-title-item">@lesson.Title</div>
+                                                            <div class="lesson-title-item">@repairText(lesson.Title)</div>
                                                             <div class="lesson-meta">
                                                                 @if (hasVideoInLesson)
                                                                 {

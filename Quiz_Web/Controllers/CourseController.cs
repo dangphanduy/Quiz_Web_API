@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
+using Quiz_Web.Models.Entities;
 
 namespace Quiz_Web.Controllers
 {
@@ -372,14 +373,32 @@ namespace Quiz_Web.Controllers
 			return View(course);
 		}
 
-		// POST: /courses/{id}/enroll (Future feature)
+		// POST: /courses/{id}/enroll
+		[Authorize]
 		[Route("/courses/{id:int}/enroll")]
 		[HttpPost]
-		public IActionResult Enroll(int id)
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> Enroll(int id, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation($"Enroll attempt for course ID: {id}");
-			TempData["Info"] = "Tính năng đăng ký khóa học đang được phát triển!";
-			return RedirectToAction(nameof(Detail), new { id });
+
+			var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+			if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+				return Challenge();
+
+			var course = _courseService.GetCourseById(id);
+			if (course == null)
+			{
+				TempData["Error"] = "Không tìm thấy khóa học.";
+				return RedirectToAction(nameof(Index));
+			}
+
+			if (course.OwnerId != userId && course.Price <= 0)
+			{
+				await EnsureFreeCoursePurchaseAsync(userId, course.CourseId, cancellationToken);
+			}
+
+			return RedirectToAction(nameof(Learn), new { slug = course.Slug });
 		}
 
 		// POST: /courses/delete/{id}
@@ -770,6 +789,11 @@ namespace Quiz_Web.Controllers
 
 			// Check if user has access to this course (owner, purchased course, or active subscription)
 			var isOwner = course.OwnerId == userId;
+			if (!isOwner && course.Price <= 0 && course.IsPublished)
+			{
+				await EnsureFreeCoursePurchaseAsync(userId, course.CourseId, HttpContext.RequestAborted);
+			}
+
 			var hasAccess = isOwner ||
 				await _courseAccessService.CheckCourseAccessAsync(userId, course.CourseId, HttpContext.RequestAborted);
 
@@ -849,6 +873,32 @@ namespace Quiz_Web.Controllers
 			}
 
 			return result;
+		}
+
+		private async Task EnsureFreeCoursePurchaseAsync(
+			int userId,
+			int courseId,
+			CancellationToken cancellationToken)
+		{
+			var alreadyEnrolled = await _context.CoursePurchases
+				.AnyAsync(x => x.BuyerId == userId &&
+				               x.CourseId == courseId &&
+				               x.Status == "Paid", cancellationToken);
+
+			if (alreadyEnrolled)
+				return;
+
+			_context.CoursePurchases.Add(new CoursePurchase
+			{
+				BuyerId = userId,
+				CourseId = courseId,
+				PricePaid = 0,
+				Currency = "VND",
+				Status = "Paid",
+				PurchasedAt = DateTime.UtcNow
+			});
+
+			await _context.SaveChangesAsync(cancellationToken);
 		}
 
 		// GET: /courses/revenue - th?ng kê doanh thu t? các khóa h?c c?a ngu?i dùng

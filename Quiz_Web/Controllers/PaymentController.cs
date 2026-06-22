@@ -66,11 +66,44 @@ public class PaymentController : Controller
         if (selectedItems.Count != selectedCourseIds.Count)
             return Json(new { success = false, message = "Một số khóa học đã chọn không còn trong giỏ hàng." });
 
-        var total = selectedItems.Sum(x => x.Course.Price);
+        var freeItems = selectedItems
+            .Where(x => x.Course.Price <= 0)
+            .ToList();
+        var paidItems = selectedItems
+            .Where(x => x.Course.Price > 0)
+            .ToList();
+
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
+            if (freeItems.Any())
+            {
+                await GrantFreeCourseAccessAsync(
+                    userId,
+                    freeItems.Select(x => x.CourseId),
+                    cancellationToken);
+            }
+
+            if (!paidItems.Any())
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                var firstFreeCourseSlug = freeItems.FirstOrDefault()?.Course.Slug;
+                var redirectUrl = firstFreeCourseSlug is null
+                    ? Url.Action("Index", "Library")
+                    : Url.Action("Learn", "Course", new { slug = firstFreeCourseSlug });
+
+                return Json(new
+                {
+                    success = true,
+                    redirectUrl,
+                    message = "Bạn đã được ghi danh vào khóa học miễn phí."
+                });
+            }
+
+            var total = paidItems.Sum(x => x.Course.Price);
             var order = new Order
             {
                 BuyerId = userId,
@@ -82,7 +115,7 @@ public class PaymentController : Controller
             _context.Orders.Add(order);
             await _context.SaveChangesAsync(cancellationToken);
 
-            foreach (var item in selectedItems)
+            foreach (var item in paidItems)
             {
                 _context.OrderItems.Add(new OrderItem
                 {
@@ -522,6 +555,43 @@ public class PaymentController : Controller
         return int.TryParse(value, out var userId)
             ? userId
             : throw new UnauthorizedAccessException("User not authenticated.");
+    }
+
+    private async Task GrantFreeCourseAccessAsync(
+        int userId,
+        IEnumerable<int> courseIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = courseIds
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList();
+
+        if (!ids.Any())
+            return;
+
+        var existingPaidCourseIds = await _context.CoursePurchases
+            .Where(x => x.BuyerId == userId &&
+                        ids.Contains(x.CourseId) &&
+                        x.Status == "Paid")
+            .Select(x => x.CourseId)
+            .ToListAsync(cancellationToken);
+
+        var now = DateTime.UtcNow;
+        foreach (var courseId in ids.Except(existingPaidCourseIds))
+        {
+            _context.CoursePurchases.Add(new CoursePurchase
+            {
+                BuyerId = userId,
+                CourseId = courseId,
+                PricePaid = 0,
+                Currency = "VND",
+                Status = "Paid",
+                PurchasedAt = now
+            });
+        }
+
+        await RemovePurchasedCartItemsAsync(userId, ids, cancellationToken);
     }
 
     private async Task RemovePurchasedCartItemsAsync(

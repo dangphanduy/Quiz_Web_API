@@ -88,6 +88,11 @@ namespace Quiz_Web.Controllers.API
                     return BadRequest(new { success = false, message = "Bạn không thể mua khóa học của chính mình" });
                 }
                 
+                if (course != null && course.Price <= 0)
+                {
+                    return BadRequest(new { success = false, message = "Khóa học miễn phí có thể vào học ngay, không cần thêm vào giỏ hàng" });
+                }
+
                 var hasAccess = await _courseAccessService.CheckCourseAccessAsync(userId, courseId, HttpContext.RequestAborted);
                 if (hasAccess)
                 {
