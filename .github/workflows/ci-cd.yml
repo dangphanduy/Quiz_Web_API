@@ -137,4 +137,13 @@ jobs:
             --allow-unauthenticated
             --add-cloudsql-instances=${{ secrets.GCP_SQL_INSTANCE }}
           env_vars: |
-            ConnectionStrings__DefaultConnection=Server=127.0.0.1,1433;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
+            ConnectionStrings__DefaultConnection="Server==34.126.183.146,1433;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True"
+            GoogleCloudStorage__BucketName="quiz-web-storage-2026"
+            PayOSSettings__ClientId="${{ secrets.PAYOS_CLIENT_ID }}"
+            PayOSSettings__ApiKey="${{ secrets.PAYOS_API_KEY }}"
+            PayOSSettings__ChecksumKey="${{ secrets.PAYOS_CHECKSUM_KEY }}"
+            Gemini__ApiKey="${{ secrets.GEMINI_API_KEY }}"
+            Gemini__Model="gemini-3.5-flash"
+            # Cấu hình Google & Facebook login:
+            Authentication__Google__ClientId="94657330185-8nealpnhm21ta5lhpa5rvvm1ka7o2aqk.apps.googleusercontent.com"
+            Authentication__Facebook__AppId="1655673475736606"
