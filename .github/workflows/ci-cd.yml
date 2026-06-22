@@ -135,5 +135,6 @@ jobs:
           image: asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiz-web-api/api:${{ github.sha }}
           flags: |
             --allow-unauthenticated
+            --add-cloudsql-instances=${{ secrets.GCP_SQL_INSTANCE }}
           env_vars: |
-            ConnectionStrings__DefaultConnection=Server=34.126.183.146,1433;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
+            ConnectionStrings__DefaultConnection=Server=127.0.0.1,1433;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
