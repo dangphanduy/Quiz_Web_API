@@ -1111,6 +1111,26 @@ function loadCourseProgress() {
                         progressText.textContent = `${Math.round(percentage)}% (${data.completedContents}/${data.totalContents})`;
                     }
                 }
+
+                // Show certificate sidebar button if completed
+                if (data.isCompleted100 && data.certificateVerifyCode) {
+                    const certContainer = document.getElementById('certificateSidebarContainer');
+                    if (certContainer) {
+                        certContainer.style.display = 'block';
+                        setupCertificateUI(data.certificateVerifyCode);
+                    }
+                    
+                    // Show congrats modal if not shown before
+                    const congratsShownKey = `congrats_shown_${courseSlug}`;
+                    if (!localStorage.getItem(congratsShownKey)) {
+                        const congratsModalEl = document.getElementById('congratsModal');
+                        if (congratsModalEl) {
+                            const congratsModal = new bootstrap.Modal(congratsModalEl);
+                            congratsModal.show();
+                            localStorage.setItem(congratsShownKey, 'true');
+                        }
+                    }
+                }
                 
                 // Update completed content buttons (PDF buttons)
                 if (data.completedContentIds && data.completedContentIds.length > 0) {
@@ -1172,3 +1192,75 @@ window.addEventListener('beforeunload', function() {
         saveVideoProgress();
     }
 });
+
+// Certificate UI logic helpers
+let isCertificateUISetup = false;
+function setupCertificateUI(verifyCode) {
+    if (isCertificateUISetup) return;
+    isCertificateUISetup = true;
+
+    // Sidebar button click
+    const viewBtn = document.getElementById('viewCertificateBtn');
+    if (viewBtn) {
+        viewBtn.addEventListener('click', function() {
+            showCertificate(verifyCode);
+        });
+    }
+
+    // Congrats Modal View button click
+    const congratsViewBtn = document.getElementById('congratsViewCertBtn');
+    if (congratsViewBtn) {
+        congratsViewBtn.addEventListener('click', function() {
+            // Hide congrats modal
+            const congratsModalEl = document.getElementById('congratsModal');
+            if (congratsModalEl) {
+                const congratsModal = bootstrap.Modal.getInstance(congratsModalEl);
+                if (congratsModal) {
+                    congratsModal.hide();
+                }
+            }
+            // Show certificate modal
+            showCertificate(verifyCode);
+        });
+    }
+}
+
+function showCertificate(verifyCode) {
+    const certModalEl = document.getElementById('certificateModal');
+    if (!certModalEl) return;
+    
+    const certModal = new bootstrap.Modal(certModalEl);
+    
+    // Reset view
+    const certSpinner = document.getElementById('certSpinner');
+    const certImg = document.getElementById('certificateImg');
+    const downloadBtn = document.getElementById('downloadCertBtn');
+    
+    if (certSpinner) {
+        certSpinner.style.display = 'flex';
+        const spinner = certSpinner.querySelector('.spinner-border');
+        if (spinner) spinner.style.display = 'inline-block';
+        certSpinner.querySelector('span').textContent = 'Đang khởi tạo chứng chỉ của bạn...';
+    }
+    if (certImg) {
+        certImg.style.display = 'none';
+        certImg.src = `/api/certificates/${verifyCode}/image`;
+        certImg.onload = function() {
+            if (certSpinner) certSpinner.style.display = 'none';
+            certImg.style.display = 'block';
+        };
+        certImg.onerror = function() {
+            if (certSpinner) {
+                certSpinner.querySelector('span').textContent = 'Không thể tải ảnh chứng chỉ. Vui lòng thử lại sau.';
+                const spinner = certSpinner.querySelector('.spinner-border');
+                if (spinner) spinner.style.display = 'none';
+            }
+        };
+    }
+    
+    if (downloadBtn) {
+        downloadBtn.href = `/api/certificates/${verifyCode}/image?download=true`;
+    }
+    
+    certModal.show();
+}

@@ -111,6 +111,7 @@ builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddSingleton<IStorageService, GoogleCloudStorageService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<ICourseAccessService, CourseAccessService>();
+builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton(TimeProvider.System);

@@ -12,6 +12,142 @@
     <link rel="stylesheet" href="~/css/course/course-learn.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/flashcards/common.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/flashcards/index.css" asp-append-version="true" />
+    <style>
+        /* Certificate Sidebar Container */
+        #certificateSidebarContainer {
+            margin-top: 15px;
+            padding: 10px 15px;
+            background: rgba(164, 53, 240, 0.08);
+            border: 1px dashed rgba(164, 53, 240, 0.4);
+            border-radius: 12px;
+            text-align: center;
+        }
+        #viewCertificateBtn {
+            background: linear-gradient(135deg, #a435f0 0%, #7d12ff 100%);
+            border: none;
+            font-weight: 600;
+            padding: 10px 20px;
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+        #viewCertificateBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(164, 53, 240, 0.4);
+        }
+
+        /* Congratulations Modal */
+        .congrats-modal-content {
+            background: radial-gradient(circle at top, #ffffff 60%, #f4e8ff 100%);
+            border-radius: 20px;
+            border: none;
+            overflow: hidden;
+        }
+        .congrats-header {
+            border-bottom: none;
+            padding-top: 40px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .congrats-icon-wrapper {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #ffbc00 0%, #ff8800 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 45px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(255, 136, 0, 0.3);
+            margin-bottom: 20px;
+            animation: bounceIn 1s ease-out;
+        }
+        .congrats-title {
+            font-size: 28px;
+            font-weight: 850;
+            color: #1c1d1f;
+            margin-bottom: 10px;
+        }
+        .congrats-body {
+            text-align: center;
+            padding: 20px 40px;
+            font-size: 16px;
+            color: #6a6f73;
+        }
+        .congrats-footer {
+            border-top: none;
+            padding-bottom: 40px;
+            justify-content: center;
+            gap: 15px;
+        }
+        .btn-congrats-view {
+            background: #a435f0;
+            color: white;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .btn-congrats-view:hover {
+            background: #8710d8;
+            box-shadow: 0 5px 15px rgba(164, 53, 240, 0.4);
+            transform: translateY(-2px);
+        }
+        .btn-congrats-close {
+            background: #f7f9fa;
+            border: 1px solid #d1d7dc;
+            color: #1c1d1f;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+        .btn-congrats-close:hover {
+            background: #e4e8eb;
+        }
+
+        /* Certificate Modal */
+        .cert-modal-content {
+            border-radius: 16px;
+            border: none;
+        }
+        .cert-image-container {
+            position: relative;
+            background: #f8f9fa;
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #certificateImg {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+            object-fit: contain;
+            display: none;
+        }
+        .cert-spinner {
+            position: absolute;
+            font-size: 18px;
+            color: #a435f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        @@keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            70% { transform: scale(0.9); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
 }
 
 <div class="container-fluid course-player-container">
@@ -394,6 +530,11 @@
                         </div>
                     </div>
                 </div>
+                <div class="certificate-container mt-3" id="certificateSidebarContainer" style="display: none;">
+                    <button class="btn btn-primary w-100 rounded-pill shadow-sm" id="viewCertificateBtn">
+                        <i class="fas fa-award me-2"></i>Xem chứng chỉ
+                    </button>
+                </div>
             </div>
 
             <div class="sidebar-content">
@@ -483,6 +624,59 @@
                         Khóa học chưa có nội dung.
                     </div>
                 }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Congratulations Modal -->
+<div class="modal fade" id="congratsModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content congrats-modal-content shadow-lg">
+            <div class="modal-header congrats-header">
+                <div class="congrats-icon-wrapper">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <h3 class="modal-title congrats-title">Chúc Mừng Bạn!</h3>
+            </div>
+            <div class="modal-body congrats-body">
+                <p>Bạn đã hoàn thành 100% nội dung khóa học <strong><span id="congratsCourseTitle">@course?.Title</span></strong>.</p>
+                <p>Chứng chỉ hoàn thành khóa học đã được gửi về email của bạn. Bạn cũng có thể xem và tải về chứng chỉ ngay tại đây.</p>
+            </div>
+            <div class="modal-footer congrats-footer">
+                <button type="button" class="btn btn-congrats-close" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-congrats-view" id="congratsViewCertBtn">
+                    <i class="fas fa-award me-2"></i>Xem chứng chỉ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Certificate Viewer Modal -->
+<div class="modal fade" id="certificateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content cert-modal-content shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h4 class="modal-title fw-bold text-dark"><i class="fas fa-award text-warning me-2"></i>Chứng chỉ hoàn thành</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="cert-image-container border mb-3">
+                    <div class="cert-spinner" id="certSpinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải chứng chỉ...</span>
+                        </div>
+                        <span class="mt-2">Đang khởi tạo chứng chỉ của bạn...</span>
+                    </div>
+                    <img id="certificateImg" src="" alt="Chứng chỉ hoàn thành khóa học" />
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                <a id="downloadCertBtn" href="" class="btn btn-primary rounded-pill px-4 shadow" download>
+                    <i class="fas fa-download me-2"></i>Tải về chứng chỉ
+                </a>
             </div>
         </div>
     </div>
