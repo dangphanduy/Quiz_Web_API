@@ -14,11 +14,16 @@ public class ChatHub : Hub
 {
     private readonly IChatService _chatService;
     private readonly LearningPlatformContext _context;
+    private readonly ILogger<ChatHub> _logger;
 
-    public ChatHub(IChatService chatService, LearningPlatformContext context)
+    public ChatHub(
+        IChatService chatService,
+        LearningPlatformContext context,
+        ILogger<ChatHub> logger)
     {
         _chatService = chatService;
         _context = context;
+        _logger = logger;
     }
 
     public async Task JoinConversation(int conversationId)
@@ -36,11 +41,20 @@ public class ChatHub : Hub
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, conversationId.ToString());
+        _logger.LogInformation(
+            "User {UserId} joined chat conversation {ConversationId} with connection {ConnectionId}",
+            userId,
+            conversationId,
+            Context.ConnectionId);
     }
 
     public async Task LeaveConversation(int conversationId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, conversationId.ToString());
+        _logger.LogInformation(
+            "Connection {ConnectionId} left chat conversation {ConversationId}",
+            Context.ConnectionId,
+            conversationId);
     }
 
     public async Task SendMessage(int conversationId, string content, string messageType, string? fileName = null)
@@ -98,5 +112,13 @@ public class ChatHub : Hub
 
         // Gửi thông báo realtime về số lượng tin nhắn chưa đọc đến client (nếu họ có kết nối SignalR chung hoặc qua client notification channel)
         await Clients.User(recipientId.ToString()).SendAsync("ReceiveSystemNotification", notification.Title, notification.Body, notification.Data);
+
+        _logger.LogInformation(
+            "User {SenderId} sent chat message {MessageId} to conversation {ConversationId}; recipient {RecipientId}; message type {MessageType}",
+            userId,
+            savedMessage.MessageId,
+            conversationId,
+            recipientId,
+            messageType);
     }
 }

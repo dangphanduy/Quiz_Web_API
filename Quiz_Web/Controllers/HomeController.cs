@@ -112,6 +112,19 @@ namespace Quiz_Web.Controllers
             return View();
         }
 
+        // TEST ONLY: Comment this action when exception handling no longer needs manual testing.
+        // [AllowAnonymous]
+        // [HttpGet("/demo-error")]
+        // public IActionResult DemoError()
+        // {
+        //     _logger.LogWarning(
+        //         "Demo exception endpoint was triggered. TraceId: {TraceId}",
+        //         HttpContext.TraceIdentifier);
+
+        //     // GlobalExceptionHandler logs this exception at Error level with its stack trace.
+        //     throw new InvalidOperationException("Demo exception for web exception handling");
+        // }
+
         [Authorize]
         [Route("/home-checkout")]
         public IActionResult Checkout()
