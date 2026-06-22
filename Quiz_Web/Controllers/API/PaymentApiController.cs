@@ -16,20 +16,20 @@ namespace Quiz_Web.Controllers.API
     {
         private readonly IPayOSService _payOSService;
         private readonly ICartService _cartService;
-        private readonly IPurchaseService _purchaseService;
+        private readonly ICourseAccessService _courseAccessService;
         private readonly LearningPlatformContext _context;
         private readonly ILogger<PaymentApiController> _logger;
 
         public PaymentApiController(
             IPayOSService payOSService,
             ICartService cartService,
-            IPurchaseService purchaseService,
+            ICourseAccessService courseAccessService,
             LearningPlatformContext context,
             ILogger<PaymentApiController> logger)
         {
             _payOSService = payOSService;
             _cartService = cartService;
-            _purchaseService = purchaseService;
+            _courseAccessService = courseAccessService;
             _context = context;
             _logger = logger;
         }
@@ -161,7 +161,7 @@ namespace Quiz_Web.Controllers.API
             try
             {
                 var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
-                var hasAccess = await _purchaseService.HasUserPurchasedCourseAsync(userId, courseId);
+                var hasAccess = await _courseAccessService.CheckCourseAccessAsync(userId, courseId, HttpContext.RequestAborted);
                 return Ok(new { success = true, hasAccess });
             }
             catch (Exception ex)

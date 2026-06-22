@@ -13,18 +13,18 @@ namespace Quiz_Web.Controllers.API
     public class CartApiController : ControllerBase
     {
         private readonly ICartService _cartService;
-        private readonly IPurchaseService _purchaseService;
+        private readonly ICourseAccessService _courseAccessService;
         private readonly ILogger<CartApiController> _logger;
         private readonly LearningPlatformContext _context;
 
         public CartApiController(
             ICartService cartService, 
-            IPurchaseService purchaseService, 
+            ICourseAccessService courseAccessService, 
             ILogger<CartApiController> logger,
             LearningPlatformContext context)
         {
             _cartService = cartService;
-            _purchaseService = purchaseService;
+            _courseAccessService = courseAccessService;
             _logger = logger;
             _context = context;
         }
@@ -88,8 +88,8 @@ namespace Quiz_Web.Controllers.API
                     return BadRequest(new { success = false, message = "Bạn không thể mua khóa học của chính mình" });
                 }
                 
-                var hasPurchased = await _purchaseService.HasUserPurchasedCourseAsync(userId, courseId);
-                if (hasPurchased)
+                var hasAccess = await _courseAccessService.CheckCourseAccessAsync(userId, courseId, HttpContext.RequestAborted);
+                if (hasAccess)
                 {
                     return BadRequest(new { success = false, message = "Bạn đã sở hữu khóa học này" });
                 }
@@ -184,8 +184,8 @@ namespace Quiz_Web.Controllers.API
             try
             {
                 var userId = GetCurrentUserId();
-                var hasPurchased = await _purchaseService.HasUserPurchasedCourseAsync(userId, courseId);
-                return Ok(new { success = true, hasPurchased = hasPurchased });
+                var hasAccess = await _courseAccessService.CheckCourseAccessAsync(userId, courseId, HttpContext.RequestAborted);
+                return Ok(new { success = true, hasPurchased = hasAccess });
             }
             catch (Exception ex)
             {

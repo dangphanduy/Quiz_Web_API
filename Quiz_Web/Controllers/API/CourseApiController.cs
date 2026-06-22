@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Quiz_Web.Models.EF;
 using Quiz_Web.Services.IServices;
 using System.Security.Claims;
 
@@ -13,16 +11,16 @@ namespace Quiz_Web.Controllers.API
     {
         private readonly ICourseService _courseService;
         private readonly ILogger<CourseApiController> _logger;
-        private readonly LearningPlatformContext _context;
+        private readonly ICourseAccessService _courseAccessService;
 
         public CourseApiController(
             ICourseService courseService,
             ILogger<CourseApiController> logger,
-            LearningPlatformContext context)
+            ICourseAccessService courseAccessService)
         {
             _courseService = courseService;
             _logger = logger;
-            _context = context;
+            _courseAccessService = courseAccessService;
         }
 
         // GET: api/CourseApi
@@ -83,7 +81,7 @@ namespace Quiz_Web.Controllers.API
 
         // GET: api/CourseApi/{slug}
         [HttpGet("{slug}")]
-        public IActionResult GetCourseDetail(string slug)
+        public async Task<IActionResult> GetCourseDetail(string slug)
         {
             try
             {
@@ -99,7 +97,8 @@ namespace Quiz_Web.Controllers.API
                 if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var userId))
                 {
                     isOwner = course.OwnerId == userId;
-                    hasAccess = isOwner || (course.CoursePurchases?.Any(p => p.BuyerId == userId && p.Status == "Paid") ?? false);
+                    hasAccess = isOwner ||
+                        await _courseAccessService.CheckCourseAccessAsync(userId, course.CourseId, HttpContext.RequestAborted);
                 }
 
                 var courseDetail = new
@@ -144,7 +143,7 @@ namespace Quiz_Web.Controllers.API
         // GET: api/CourseApi/{slug}/learn
         [Authorize]
         [HttpGet("{slug}/learn")]
-        public IActionResult GetCourseLearning(string slug)
+        public async Task<IActionResult> GetCourseLearning(string slug)
         {
             try
             {
@@ -156,9 +155,10 @@ namespace Quiz_Web.Controllers.API
                 }
 
                 var isOwner = course.OwnerId == userId;
-                var hasPurchased = course.CoursePurchases?.Any(p => p.BuyerId == userId && p.Status == "Paid") ?? false;
+                var hasAccess = isOwner ||
+                    await _courseAccessService.CheckCourseAccessAsync(userId, course.CourseId, HttpContext.RequestAborted);
 
-                if (!isOwner && !hasPurchased)
+                if (!hasAccess)
                 {
                     return StatusCode(403, new { success = false, message = "Bạn cần mua khóa học này để học nội dung" });
                 }

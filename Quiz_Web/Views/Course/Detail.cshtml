@@ -14,8 +14,8 @@
 	var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
 	var userId = !string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var uid) ? uid : 0;
 	var userReview = userId > 0 ? Model.CourseReviews?.FirstOrDefault(r => r.UserId == userId) : null;
-	var hasPurchased = userId > 0 && Model.CoursePurchases?.Any(p => p.BuyerId == userId && p.Status == "Paid") == true;
-	var canReview = hasPurchased && userReview == null && !isOwner;
+	var hasCourseAccess = (ViewBag.HasCourseAccess as bool?) ?? false;
+	var canReview = hasCourseAccess && userReview == null && !isOwner;
 	var relatedCourses = CourseService.GetRelatedCourses(Model.CourseId, 6);
 }
 
@@ -455,7 +455,7 @@
 								</div>
 							</div>
 						}
-						else if (!hasPurchased && !isOwner)
+						else if (!hasCourseAccess && !isOwner)
 						{
 							<div class="alert alert-warning mb-4">
 								<i class="fas fa-info-circle me-2"></i>
@@ -592,7 +592,7 @@
 								}
 
 								<div class="d-grid gap-2 mt-3">
-									@if (hasPurchased)
+									@if (hasCourseAccess)
 									{
 										<a asp-controller="Course" asp-action="Learn" asp-route-slug="@Model.Slug"
 										   class="btn btn-primary btn-lg">
@@ -666,7 +666,7 @@
 					<div class="price-mobile">₫@Model.Price.ToString("N0")</div>
 				}
 			</div>
-			@if (hasPurchased)
+			@if (hasCourseAccess)
 			{
 				<a asp-controller="Course" asp-action="Learn" asp-route-slug="@Model.Slug"
 				   class="btn btn-primary">
