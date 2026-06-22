@@ -137,13 +137,26 @@ jobs:
             --allow-unauthenticated
             --add-cloudsql-instances=${{ secrets.GCP_SQL_INSTANCE }}
           env_vars: |
-            ConnectionStrings__DefaultConnection="Server==34.126.183.146,1433;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True"
-            GoogleCloudStorage__BucketName="quiz-web-storage-2026"
-            PayOSSettings__ClientId="${{ secrets.PAYOS_CLIENT_ID }}"
-            PayOSSettings__ApiKey="${{ secrets.PAYOS_API_KEY }}"
-            PayOSSettings__ChecksumKey="${{ secrets.PAYOS_CHECKSUM_KEY }}"
-            Gemini__ApiKey="${{ secrets.GEMINI_API_KEY }}"
-            Gemini__Model="gemini-3.5-flash"
+            ConnectionStrings__DefaultConnection= Server=34.126.183.146,1433;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
+            GoogleCloudStorage__BucketName= quiz-web-storage-2026
+            PayOSSettings__ClientId=${{ secrets.PAYOS_CLIENT_ID }}
+            PayOSSettings__ApiKey=${{ secrets.PAYOS_API_KEY }}
+            PayOSSettings__ChecksumKey=${{ secrets.PAYOS_CHECKSUM_KEY }}
+            PayOSSettings__ReturnUrl= https://quiz-web-api-service-1057869401954.asia-southeast1.run.app/Payment/PayOSReturn
+            PayOSSettings__CancelUrl= https://quiz-web-api-service-1057869401954.asia-southeast1.run.app/Payment/PayOSCancel
+            Gemini__ApiKey=${{ secrets.GEMINI_API_KEY }}
+            Gemini__Model= gemini-3.5-flash
             # Cấu hình Google & Facebook login:
-            Authentication__Google__ClientId="94657330185-8nealpnhm21ta5lhpa5rvvm1ka7o2aqk.apps.googleusercontent.com"
-            Authentication__Facebook__AppId="1655673475736606"
+            Authentication__Google__ClientId= 94657330185-8nealpnhm21ta5lhpa5rvvm1ka7o2aqk.apps.googleusercontent.com
+            Authentication__Facebook__AppId= 1655673475736606
+            # Cấu hình gửi Mail:
+            EmailSettings__SmtpHost= smtp.gmail.com
+            EmailSettings__SmtpPort= 587
+            EmailSettings__FromEmail= dangphanduy1@gmail.com
+            EmailSettings__FromPassword= ${{ secrets.EMAIL_FROM_PASSWORD }}
+            EmailSettings__FromName= Quiz
+            # Cấu hình JWT:
+            Jwt__Key= ${{ secrets.JWT_KEY }}
+            Jwt__Issuer= QuizWebAPI
+            Jwt__Audience= QuizWebClients
+            Jwt__DurationInMinutes= 180
