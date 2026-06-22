@@ -1,12 +1,29 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Services;
 using Quiz_Web.Services.IServices;
 using Ganss.Xss;
 using Quiz_Web.Models.MoMoPayment;
+using Serilog;
+using Serilog.Formatting.Elasticsearch;
+using Quiz_Web.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.Kafka(
+        formatter: new ElasticsearchJsonFormatter(),
+        bootstrapServers: builder.Configuration["Serilog:WriteTo:1:Args:bootstrapServers"] ?? "localhost:9094",
+        topic: "quiz-logs")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -121,7 +138,13 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Register exception handler
+builder.Services.AddExceptionHandler<Quiz_Web.Extensions.GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

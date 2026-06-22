@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
@@ -110,6 +110,64 @@ namespace Quiz_Web.Services
 			}
 		}
 
+		public bool GenerateForgotPasswordCode(string email, out string code)
+		{
+			try
+			{
+				var user = GetUserByEmail(email);
+				if (user == null)
+				{
+					code = null;
+					return false;
+				}
+
+				// Generate a 6-digit code
+				code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString("D6");
+
+				// Generate a secure long token
+				var secureToken = Guid.NewGuid().ToString("N");
+
+				// Store formatted as OTP|SecureToken
+				user.PasswordResetToken = $"{code}|{secureToken}";
+				user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(10);
+
+				_context.SaveChanges();
+				return true;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError($"GenerateForgotPasswordCode error: {ex.Message}");
+				code = null;
+				return false;
+			}
+		}
+
+		public bool VerifyResetCode(string email, string code, out string secureToken)
+		{
+			secureToken = null;
+			try
+			{
+				var user = GetUserByEmail(email);
+				if (user == null || string.IsNullOrEmpty(user.PasswordResetToken) || user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
+				{
+					return false;
+				}
+
+				var parts = user.PasswordResetToken.Split('|');
+				if (parts.Length == 2 && parts[0] == code.Trim())
+				{
+					secureToken = parts[1];
+					return true;
+				}
+				return false;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError($"VerifyResetCode error: {ex.Message}");
+				return false;
+			}
+		}
+
 		public bool ValidatePasswordResetToken(string token)
 		{
 			try
@@ -117,7 +175,7 @@ namespace Quiz_Web.Services
 				_logger.LogInformation($"ValidatePasswordResetToken called with token: {token}");
 				_logger.LogInformation($"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
 
-				var user = _context.Users.FirstOrDefault(u => u.PasswordResetToken == token);
+				var user = _context.Users.FirstOrDefault(u => u.PasswordResetToken == token || (u.PasswordResetToken != null && u.PasswordResetToken.EndsWith("|" + token)));
 
 				if (user == null)
 				{
@@ -152,9 +210,10 @@ namespace Quiz_Web.Services
 		{
 			try
 			{
-				var user = _context.Users.FirstOrDefault(u => u.PasswordResetToken == token
-				&& u.PasswordResetTokenExpiry.HasValue
-				&& u.PasswordResetTokenExpiry > DateTime.UtcNow);
+				var user = _context.Users.FirstOrDefault(u => 
+					(u.PasswordResetToken == token || (u.PasswordResetToken != null && u.PasswordResetToken.EndsWith("|" + token)))
+					&& u.PasswordResetTokenExpiry.HasValue
+					&& u.PasswordResetTokenExpiry > DateTime.UtcNow);
 
 				if (user == null) return false;
 
