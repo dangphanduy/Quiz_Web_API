@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+ï»¿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -65,7 +65,7 @@ namespace Quiz_Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading onboarding page");
-                TempData["Error"] = "?ã x?y ra l?i khi t?i trang. Vui lòng th? l?i.";
+                TempData["Error"] = "?ï¿½ x?y ra l?i khi t?i trang. Vui lï¿½ng th? l?i.";
                 return RedirectToAction("Index", "Home");
             }
         }
@@ -82,7 +82,7 @@ namespace Quiz_Web.Controllers
                 if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
                 {
                     _logger.LogWarning("User ID not found in claims");
-                    return Json(new { success = false, message = "Không tìm th?y thông tin ng??i dùng" });
+                    return Json(new { success = false, message = "Khï¿½ng tï¿½m th?y thï¿½ng tin ng??i dï¿½ng" });
                 }
 
                 _logger.LogInformation("UserId: {UserId}", userId);
@@ -92,7 +92,7 @@ namespace Quiz_Web.Controllers
                 if (model.SelectedCategoryIds == null || !model.SelectedCategoryIds.Any())
                 {
                     _logger.LogWarning("No categories selected");
-                    return Json(new { success = false, message = "Vui lòng ch?n ít nh?t m?t ch? ?? quan tâm" });
+                    return Json(new { success = false, message = "Vui lï¿½ng ch?n ï¿½t nh?t m?t ch? ?? quan tï¿½m" });
                 }
 
                 // Check if user already has profile
@@ -109,7 +109,7 @@ namespace Quiz_Web.Controllers
                     _logger.LogWarning("User {UserId} already completed onboarding", userId);
                     return Json(new { 
                         success = false, 
-                        message = "B?n ?ã hoàn thành vi?c thi?t l?p h? s?. N?u mu?n c?p nh?t, vui lòng vào trang cài ??t." 
+                        message = "B?n ?ï¿½ hoï¿½n thï¿½nh vi?c thi?t l?p h? s?. N?u mu?n c?p nh?t, vui lï¿½ng vï¿½o trang cï¿½i ??t." 
                     });
                 }
 
@@ -154,7 +154,7 @@ namespace Quiz_Web.Controllers
                 {
                     UserId = userId,
                     CategoryId = categoryId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.Now
                 }).ToList();
 
                 await _context.UserInterests.AddRangeAsync(userInterests);
@@ -174,7 +174,7 @@ namespace Quiz_Web.Controllers
                 _logger.LogError(dbEx, "Database update error during onboarding: {Message}", dbEx.InnerException?.Message ?? dbEx.Message);
                 return Json(new { 
                     success = false, 
-                    message = "L?i khi l?u vào database. Vui lòng ki?m tra l?i thông tin." 
+                    message = "L?i khi l?u vï¿½o database. Vui lï¿½ng ki?m tra l?i thï¿½ng tin." 
                 });
             }
             catch (Exception ex)
@@ -182,7 +182,7 @@ namespace Quiz_Web.Controllers
                 _logger.LogError(ex, "Error saving onboarding data: {Message}", ex.Message);
                 return Json(new { 
                     success = false, 
-                    message = "?ã x?y ra l?i khi l?u d? li?u. Vui lòng th? l?i." 
+                    message = "?ï¿½ x?y ra l?i khi l?u d? li?u. Vui lï¿½ng th? l?i." 
                 });
             }
         }

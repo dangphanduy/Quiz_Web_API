@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -104,7 +104,7 @@ public class ChatHub : Hub
             Body = $"{senderNameVal} đã gửi tin nhắn: {(messageType == "Text" ? (content.Length > 50 ? content.Substring(0, 47) + "..." : content) : $"[Tệp đính kèm: {fileName}]")}",
             Data = $"/Chat?conversationId={conversationId}",
             IsRead = false,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeHelper.Now
         };
 
         _context.Notifications.Add(notification);

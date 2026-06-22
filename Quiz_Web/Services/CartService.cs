@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Services.IServices;
@@ -36,7 +36,7 @@ namespace Quiz_Web.Services
                     cart = new ShoppingCart
                     {
                         UserId = userId,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.Now
                     };
                     _context.ShoppingCarts.Add(cart);
                     await _context.SaveChangesAsync();
@@ -160,11 +160,11 @@ namespace Quiz_Web.Services
                 {
                     CartId = cart.CartId,
                     CourseId = courseId,
-                    AddedAt = DateTime.UtcNow
+                    AddedAt = DateTimeHelper.Now
                 };
 
                 _context.CartItems.Add(cartItem);
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.UpdatedAt = DateTimeHelper.Now;
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Added course {CourseId} to cart for user {UserId}", courseId, userId);
@@ -194,7 +194,7 @@ namespace Quiz_Web.Services
                 }
 
                 _context.CartItems.Remove(cartItem);
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.UpdatedAt = DateTimeHelper.Now;
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Removed course {CourseId} from cart for user {UserId}", courseId, userId);
@@ -219,7 +219,7 @@ namespace Quiz_Web.Services
                     .ToListAsync();
 
                 _context.CartItems.RemoveRange(cartItems);
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.UpdatedAt = DateTimeHelper.Now;
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Cleared cart for user {UserId}", userId);

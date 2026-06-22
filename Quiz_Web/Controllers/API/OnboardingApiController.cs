@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -111,7 +111,7 @@ namespace Quiz_Web.Controllers.API
                 {
                     UserId = userId,
                     CategoryId = categoryId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.Now
                 }).ToList();
 
                 await _context.UserInterests.AddRangeAsync(userInterests);

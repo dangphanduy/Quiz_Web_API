@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -157,7 +157,7 @@ namespace Quiz_Web.Controllers.API
                     PasswordHash = HashHelper.ComputeHash(request.Password.Trim()),
                     RoleId = 2, // 2 = Student
                     Status = 1, // 1 = Active
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.Now
                 };
 
                 var success = _userService.Register(user);

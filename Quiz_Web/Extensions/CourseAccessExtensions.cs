@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using System.Security.Claims;
@@ -24,7 +24,7 @@ namespace Quiz_Web.Extensions
             if (hasPurchased)
                 return true;
 
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.Now;
             return await context.UserSubscriptions.AnyAsync(x =>
                 x.UserId == userId &&
                 x.Status == SubscriptionStatuses.Active &&

@@ -1,4 +1,4 @@
-using Quiz_Web.Models.EF;
+﻿using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -110,11 +110,11 @@ namespace Quiz_Web.Services
                     {
                         UserId = userId,
                         Type = "CourseRecommendation",
-                        Title = "?? xu?t dành riêng cho b?n!",
-                        Body = $"D?a trên s? thích \"{course.Category?.Name}\", chúng tôi ngh? b?n s? thích khóa h?c \"{course.Title}\".",
+                        Title = "Đề xuất dành riêng cho bạn!",
+                        Body = $"Dựa trên sở thích \"{course.Category?.Name}\", chúng tôi nghĩ bạn sẽ thích khóa học \"{course.Title}\".",
                         Data = JsonSerializer.Serialize(new { CourseId = course.CourseId }),
                         IsRead = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.Now
                     };
 
                     context.Set<Notification>().Add(notification);

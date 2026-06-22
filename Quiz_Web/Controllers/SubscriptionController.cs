@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Quiz_Web.Models.ViewModels;
 using Quiz_Web.Services.IServices;
@@ -37,7 +37,7 @@ public class SubscriptionController : Controller
             CurrentSubscription = current,
             DaysRemaining = current is null
                 ? null
-                : Math.Max(0, (int)Math.Ceiling((current.EndDate - DateTime.UtcNow).TotalDays))
+                : Math.Max(0, (int)Math.Ceiling((current.EndDate - DateTimeHelper.Now).TotalDays))
         };
 
         return View(model);
@@ -58,9 +58,9 @@ public class SubscriptionController : Controller
             endDate = subscription?.EndDate,
             daysRemaining = subscription is null
                 ? 0
-                : Math.Max(0, (int)Math.Ceiling((subscription.EndDate - DateTime.UtcNow).TotalDays)),
+                : Math.Max(0, (int)Math.Ceiling((subscription.EndDate - DateTimeHelper.Now).TotalDays)),
             shouldWarn = subscription is not null &&
-                         subscription.EndDate <= DateTime.UtcNow.AddDays(3)
+                         subscription.EndDate <= DateTimeHelper.Now.AddDays(3)
         });
     }
 

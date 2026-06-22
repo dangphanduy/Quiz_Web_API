@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
@@ -187,7 +187,7 @@ namespace Quiz_Web.Controllers.API
 						ContentType = "Video",
 						ContentId = videoContent.ContentId,
 						IsCompleted = false,
-						LastViewedAt = DateTime.UtcNow,
+						LastViewedAt = DateTimeHelper.Now,
 						DurationSec = request.WatchedDuration
 					};
 					_context.CourseProgresses.Add(progress);
@@ -195,7 +195,7 @@ namespace Quiz_Web.Controllers.API
 				else
 				{
 					// Update existing progress
-					progress.LastViewedAt = DateTime.UtcNow;
+					progress.LastViewedAt = DateTimeHelper.Now;
 					progress.DurationSec = request.WatchedDuration;
 				}
 
@@ -270,8 +270,8 @@ namespace Quiz_Web.Controllers.API
 						ContentType = "Video",
 						ContentId = videoContent.ContentId,
 						IsCompleted = true,
-						CompletionAt = DateTime.UtcNow,
-						LastViewedAt = DateTime.UtcNow,
+						CompletionAt = DateTimeHelper.Now,
+						LastViewedAt = DateTimeHelper.Now,
 						DurationSec = request.WatchedDuration
 					};
 					_context.CourseProgresses.Add(progress);
@@ -280,8 +280,8 @@ namespace Quiz_Web.Controllers.API
 				{
 					// Update existing progress
 					progress.IsCompleted = true;
-					progress.CompletionAt = DateTime.UtcNow;
-					progress.LastViewedAt = DateTime.UtcNow;
+					progress.CompletionAt = DateTimeHelper.Now;
+					progress.LastViewedAt = DateTimeHelper.Now;
 					progress.DurationSec = request.WatchedDuration;
 				}
 
@@ -360,8 +360,8 @@ namespace Quiz_Web.Controllers.API
 						ContentType = request.ContentType,
 						ContentId = request.ContentId,
 						IsCompleted = true,
-						CompletionAt = DateTime.UtcNow,
-						LastViewedAt = DateTime.UtcNow
+						CompletionAt = DateTimeHelper.Now,
+						LastViewedAt = DateTimeHelper.Now
 					};
 					_context.CourseProgresses.Add(progress);
 				}
@@ -369,8 +369,8 @@ namespace Quiz_Web.Controllers.API
 				{
 					// Update existing progress
 					progress.IsCompleted = true;
-					progress.CompletionAt = DateTime.UtcNow;
-					progress.LastViewedAt = DateTime.UtcNow;
+					progress.CompletionAt = DateTimeHelper.Now;
+					progress.LastViewedAt = DateTimeHelper.Now;
 				}
 
 				await _context.SaveChangesAsync();
@@ -636,13 +636,13 @@ namespace Quiz_Web.Controllers.API
 						verifyCode = Guid.NewGuid().ToString("N").Substring(0, 12).ToUpper();
 					} while (await _context.Certificates.AnyAsync(c => c.VerifyCode == verifyCode));
 
-					string serial = $"CERT-{courseId}-{userId}-{DateTime.UtcNow:yyyyMMdd}";
+					string serial = $"CERT-{courseId}-{userId}-{DateTimeHelper.Now:yyyyMMdd}";
 
 					var certificate = new Certificate
 					{
 						CourseId = courseId,
 						UserId = userId,
-						IssuedAt = DateTime.UtcNow,
+						IssuedAt = DateTimeHelper.Now,
 						VerifyCode = verifyCode,
 						Serial = serial
 					};

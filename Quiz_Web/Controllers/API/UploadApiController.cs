@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Quiz_Web.Controllers.API
@@ -36,7 +36,7 @@ namespace Quiz_Web.Controllers.API
                     return BadRequest(new { uploaded = false, error = new { message = "Định dạng file không được hỗ trợ." } });
                 }
 
-                var folder = $"uploads/ck/{DateTime.UtcNow:yyyy/MM}";
+                var folder = $"uploads/ck/{DateTimeHelper.Now:yyyy/MM}";
                 var physical = Path.Combine(_env.WebRootPath, folder);
                 Directory.CreateDirectory(physical);
 

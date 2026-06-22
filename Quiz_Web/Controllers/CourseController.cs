@@ -253,7 +253,7 @@ namespace Quiz_Web.Controllers
 					return View("Edit", model);
 				}
 
-				var folder = $"uploads/courses/{DateTime.UtcNow:yyyy/MM}";
+				var folder = $"uploads/courses/{DateTimeHelper.Now:yyyy/MM}";
 				var physical = Path.Combine(_env.WebRootPath, folder);
 				Directory.CreateDirectory(physical);
 
@@ -895,7 +895,7 @@ namespace Quiz_Web.Controllers
 				PricePaid = 0,
 				Currency = "VND",
 				Status = "Paid",
-				PurchasedAt = DateTime.UtcNow
+				PurchasedAt = DateTimeHelper.Now
 			});
 
 			await _context.SaveChangesAsync(cancellationToken);

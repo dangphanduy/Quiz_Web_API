@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Services.IServices;
@@ -37,7 +37,7 @@ namespace Quiz_Web.Services
 		//            PricePaid = totalAmount,
 		//            Currency = "VND",
 		//            Status = "Pending",
-		//            PurchasedAt = DateTime.UtcNow
+		//            PurchasedAt = DateTimeHelper.Now
 		//        };
 
 		//        _context.CoursePurchases.Add(mainPurchase);
@@ -53,7 +53,7 @@ namespace Quiz_Web.Services
 		//                PricePaid = 0, // Đã tính trong purchase chính
 		//                Currency = "VND",
 		//                Status = "Pending",
-		//                PurchasedAt = DateTime.UtcNow
+		//                PurchasedAt = DateTimeHelper.Now
 		//            };
 		//            _context.CoursePurchases.Add(purchase);
 		//        }
@@ -77,7 +77,7 @@ namespace Quiz_Web.Services
 			try
 			{
 				var newPurchases = new List<CoursePurchase>();
-				var now = DateTime.UtcNow;
+				var now = DateTimeHelper.Now;
 
 				foreach (var item in coursePrices)
 				{
@@ -174,7 +174,7 @@ namespace Quiz_Web.Services
 					PricePaid = price, // ✅ Lưu giá thực của khóa học
 					Currency = "VND",
 					Status = "Paid",
-					PurchasedAt = DateTime.UtcNow // ✅ Thêm thời gian mua
+					PurchasedAt = DateTimeHelper.Now // ✅ Thêm thời gian mua
 				});
 
 				await _context.SaveChangesAsync();

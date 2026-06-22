@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Helper;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
@@ -144,7 +144,7 @@ namespace Quiz_Web.Services
 					Price = model.Price ?? 0,
 					//Currency = model.Currency,
 					IsPublished = model.IsPublished,
-					CreatedAt = DateTime.Now
+					CreatedAt = DateTimeHelper.Now
 				};
 
 				_context.Courses.Add(course);
@@ -233,7 +233,7 @@ namespace Quiz_Web.Services
 				//course.Currency = model.Currency;
 				course.IsPublished = model.IsPublished;
 				course.CoverUrl = model.CoverUrl;
-				course.UpdatedAt = DateTime.UtcNow;
+				course.UpdatedAt = DateTimeHelper.Now;
 
 				_context.SaveChanges();
 				return course;
@@ -310,7 +310,7 @@ namespace Quiz_Web.Services
 					CoverUrl = model.CoverUrl,
 					Price = model.Price ?? 0,
 					IsPublished = model.IsPublished,
-					CreatedAt = DateTime.UtcNow
+					CreatedAt = DateTimeHelper.Now
 				};
 
 				_context.Courses.Add(course);
@@ -339,7 +339,7 @@ namespace Quiz_Web.Services
 							Description = lessonVM.Description,
 							OrderIndex = lessonVM.OrderIndex,
 							Visibility = lessonVM.Visibility,
-							CreatedAt = DateTime.UtcNow
+							CreatedAt = DateTimeHelper.Now
 						};
 
 						_context.Lessons.Add(lesson);
@@ -358,7 +358,7 @@ namespace Quiz_Web.Services
 									Title = contentVM.FlashcardSetTitle ?? contentVM.Title ?? "Untitled Flashcard Set",
 									Description = contentVM.FlashcardSetDesc,
 									Visibility = "Course", // Course-only visibility
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -375,7 +375,7 @@ namespace Quiz_Web.Services
 										BackText = flashcardVM.BackText,
 										Hint = flashcardVM.Hint,
 										OrderIndex = flashcardVM.OrderIndex,
-										CreatedAt = DateTime.UtcNow
+										CreatedAt = DateTimeHelper.Now
 									};
 
 									_context.Flashcards.Add(flashcard);
@@ -413,7 +413,7 @@ namespace Quiz_Web.Services
 									ShuffleQuestions = false,
 									ShuffleOptions = false,
 									GradingMode = "Auto",
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -467,7 +467,7 @@ namespace Quiz_Web.Services
 								VideoUrl = contentVM.VideoUrl,
 								DocumentUrl = contentVM.DocumentUrl,
 								OrderIndex = contentVM.OrderIndex,
-								CreatedAt = DateTime.UtcNow
+								CreatedAt = DateTimeHelper.Now
 							};
 
 							_context.LessonContents.Add(content);
@@ -510,7 +510,7 @@ namespace Quiz_Web.Services
 				course.CoverUrl = model.CoverUrl;
 				course.Price = model.Price ?? 0;
 				course.IsPublished = model.IsPublished;
-				course.UpdatedAt = DateTime.UtcNow;
+				course.UpdatedAt = DateTimeHelper.Now;
 
 				// Collect RefIds of FlashcardSets and Tests to delete
 				var flashcardSetIdsToDelete = new List<int>();
@@ -585,7 +585,7 @@ namespace Quiz_Web.Services
 							Description = lessonVM.Description,
 							OrderIndex = lessonVM.OrderIndex,
 							Visibility = lessonVM.Visibility,
-							CreatedAt = DateTime.UtcNow
+							CreatedAt = DateTimeHelper.Now
 						};
 
 						_context.Lessons.Add(lesson);
@@ -604,7 +604,7 @@ namespace Quiz_Web.Services
 									Title = contentVM.FlashcardSetTitle ?? contentVM.Title ?? "Untitled Flashcard Set",
 									Description = contentVM.FlashcardSetDesc,
 									Visibility = "Course",
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -621,7 +621,7 @@ namespace Quiz_Web.Services
 										BackText = flashcardVM.BackText,
 										Hint = flashcardVM.Hint,
 										OrderIndex = flashcardVM.OrderIndex,
-										CreatedAt = DateTime.UtcNow
+										CreatedAt = DateTimeHelper.Now
 									};
 
 									_context.Flashcards.Add(flashcard);
@@ -659,7 +659,7 @@ namespace Quiz_Web.Services
 									ShuffleQuestions = false,
 									ShuffleOptions = false,
 									GradingMode = "Auto",
-									CreatedAt = DateTime.UtcNow,
+									CreatedAt = DateTimeHelper.Now,
 									IsDeleted = false
 								};
 
@@ -713,7 +713,7 @@ namespace Quiz_Web.Services
 								VideoUrl = contentVM.VideoUrl, // ADD THIS LINE
 								DocumentUrl = contentVM.DocumentUrl,
 								OrderIndex = contentVM.OrderIndex,
-								CreatedAt = DateTime.UtcNow
+								CreatedAt = DateTimeHelper.Now
 							};
 
 							_context.LessonContents.Add(content);
@@ -881,7 +881,7 @@ namespace Quiz_Web.Services
 						course.CategoryId = model.CategoryId;
 						course.CoverUrl = model.CoverUrl;
 						course.Price = model.Price ?? 0;
-						course.UpdatedAt = DateTime.UtcNow;
+						course.UpdatedAt = DateTimeHelper.Now;
 						_context.SaveChanges();
 						return true;
 					}
@@ -906,7 +906,7 @@ namespace Quiz_Web.Services
 						CoverUrl = model.CoverUrl,
 						Price = model.Price ?? 0,
 						IsPublished = false,
-						CreatedAt = DateTime.UtcNow
+						CreatedAt = DateTimeHelper.Now
 					};
 					_context.Courses.Add(course);
 					_context.SaveChanges();
