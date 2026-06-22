@@ -36,7 +36,9 @@ namespace Quiz_Web.Controllers.API
 
         // POST: api/PaymentApi/create
         [HttpPost("create")]
-        public async Task<IActionResult> CreatePayment()
+        public async Task<IActionResult> CreatePayment(
+            [FromBody] CoursePaymentRequest? request,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -46,7 +48,22 @@ namespace Quiz_Web.Controllers.API
                 if (!cartItems.Any())
                     return BadRequest(new { success = false, message = "Giỏ hàng trống" });
 
-                var total = cartItems.Sum(x => x.Course.Price);
+                var selectedCourseIds = request?.CourseIds?
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToList() ?? new List<int>();
+
+                if (!selectedCourseIds.Any())
+                    return BadRequest(new { success = false, message = "Vui lòng chọn ít nhất một khóa học để thanh toán" });
+
+                var selectedItems = cartItems
+                    .Where(x => selectedCourseIds.Contains(x.CourseId))
+                    .ToList();
+
+                if (selectedItems.Count != selectedCourseIds.Count)
+                    return BadRequest(new { success = false, message = "Một số khóa học đã chọn không còn trong giỏ hàng" });
+
+                var total = selectedItems.Sum(x => x.Course.Price);
 
                 // 1) Tạo Order
                 var order = new Order
@@ -60,7 +77,7 @@ namespace Quiz_Web.Controllers.API
                 await _context.SaveChangesAsync();
 
                 // 2) Tạo OrderItems
-                foreach (var item in cartItems)
+                foreach (var item in selectedItems)
                 {
                     _context.OrderItems.Add(new OrderItem
                     {
@@ -72,7 +89,7 @@ namespace Quiz_Web.Controllers.API
                 await _context.SaveChangesAsync();
 
                 // 3) Tạo Purchase (Pending)
-                foreach (var item in cartItems)
+                foreach (var item in selectedItems)
                 {
                     _context.CoursePurchases.Add(new CoursePurchase
                     {
@@ -95,7 +112,9 @@ namespace Quiz_Web.Controllers.API
                     Amount = total,
                     Currency = "VND",
                     Status = "Pending",
-                    RawPayload = orderIdStr
+                    Purpose = PaymentPurposes.Course,
+                    RawPayload = orderIdStr,
+                    ProviderRef = orderIdStr
                 };
 
                 _context.Payments.Add(payment);
@@ -169,6 +188,11 @@ namespace Quiz_Web.Controllers.API
                 _logger.LogError(ex, "API error checking course access");
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi kiểm tra quyền truy cập khóa học" });
             }
+        }
+
+        public sealed class CoursePaymentRequest
+        {
+            public List<int> CourseIds { get; set; } = new();
         }
     }
 }

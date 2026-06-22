@@ -20,6 +20,7 @@ public class PaymentController : Controller
     private readonly ICourseAccessService _courseAccessService;
     private readonly LearningPlatformContext _context;
     private readonly ILogger<PaymentController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     public PaymentController(
         IPayOSService payOSService,
@@ -27,7 +28,8 @@ public class PaymentController : Controller
         ISubscriptionService subscriptionService,
         ICourseAccessService courseAccessService,
         LearningPlatformContext context,
-        ILogger<PaymentController> logger)
+        ILogger<PaymentController> logger,
+        IWebHostEnvironment environment)
     {
         _payOSService = payOSService;
         _cartService = cartService;
@@ -35,18 +37,36 @@ public class PaymentController : Controller
         _courseAccessService = courseAccessService;
         _context = context;
         _logger = logger;
+        _environment = environment;
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> CreatePayOSPayment(CancellationToken cancellationToken)
+    public async Task<IActionResult> CreatePayOSPayment(
+        [FromBody] CoursePaymentRequest? request,
+        CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         var cartItems = await _cartService.GetCartItemsAsync(userId);
         if (!cartItems.Any())
             return Json(new { success = false, message = "Giỏ hàng trống." });
 
-        var total = cartItems.Sum(x => x.Course.Price);
+        var selectedCourseIds = request?.CourseIds?
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList() ?? new List<int>();
+
+        if (!selectedCourseIds.Any())
+            return Json(new { success = false, message = "Vui lòng chọn ít nhất một khóa học để thanh toán." });
+
+        var selectedItems = cartItems
+            .Where(x => selectedCourseIds.Contains(x.CourseId))
+            .ToList();
+
+        if (selectedItems.Count != selectedCourseIds.Count)
+            return Json(new { success = false, message = "Một số khóa học đã chọn không còn trong giỏ hàng." });
+
+        var total = selectedItems.Sum(x => x.Course.Price);
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -62,7 +82,7 @@ public class PaymentController : Controller
             _context.Orders.Add(order);
             await _context.SaveChangesAsync(cancellationToken);
 
-            foreach (var item in cartItems)
+            foreach (var item in selectedItems)
             {
                 _context.OrderItems.Add(new OrderItem
                 {
@@ -439,7 +459,10 @@ public class PaymentController : Controller
                     purchase.PurchasedAt = paidAt;
                 }
 
-                await _cartService.ClearCartAsync(payment.Order.BuyerId);
+                await RemovePurchasedCartItemsAsync(
+                    payment.Order.BuyerId,
+                    courseIds,
+                    cancellationToken);
             }
 
             await _context.SaveChangesAsync(cancellationToken);
@@ -501,14 +524,53 @@ public class PaymentController : Controller
             : throw new UnauthorizedAccessException("User not authenticated.");
     }
 
+    private async Task RemovePurchasedCartItemsAsync(
+        int userId,
+        List<int> courseIds,
+        CancellationToken cancellationToken)
+    {
+        if (!courseIds.Any())
+            return;
+
+        var cart = await _context.ShoppingCarts
+            .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+
+        if (cart is null)
+            return;
+
+        var cartItems = await _context.CartItems
+            .Where(x => x.CartId == cart.CartId && courseIds.Contains(x.CourseId))
+            .ToListAsync(cancellationToken);
+
+        if (!cartItems.Any())
+            return;
+
+        _context.CartItems.RemoveRange(cartItems);
+        cart.UpdatedAt = DateTime.UtcNow;
+    }
+
+    public sealed class CoursePaymentRequest
+    {
+        public List<int> CourseIds { get; set; } = new();
+    }
+
+    [Authorize]
     [HttpPost("Payment/SimulateSuccess")]
-    public async Task<IActionResult> SimulateSuccess([FromBody] SimulateRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SimulateSuccess(
+        [FromBody] SimulateRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
+            if (!_environment.IsDevelopment())
+                return NotFound(new { success = false, message = "Chức năng giả lập chỉ khả dụng ở môi trường Development." });
+
+            var userId = GetCurrentUserId();
             var payment = await _context.Payments
                 .Include(x => x.Order)
-                .FirstOrDefaultAsync(x => x.OrderId == request.OrderId, cancellationToken);
+                .FirstOrDefaultAsync(
+                    x => x.OrderId == request.OrderId && x.Order.BuyerId == userId,
+                    cancellationToken);
 
             if (payment is null)
                 return NotFound(new { success = false, message = "Không tìm thấy giao dịch." });

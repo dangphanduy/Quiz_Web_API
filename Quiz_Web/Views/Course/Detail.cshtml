@@ -598,6 +598,9 @@
 										   class="btn btn-primary btn-lg">
 											<i class="fas fa-play-circle me-2"></i>Bắt đầu học
 										</a>
+										<button type="button" class="btn btn-outline-primary btn-lg mt-2" onclick="startInstructorChat(@Model.CourseId)">
+											<i class="far fa-comments me-2"></i>Nhắn tin với giảng viên
+										</button>
 									}
 									else
 									{
@@ -668,10 +671,15 @@
 			</div>
 			@if (hasCourseAccess)
 			{
-				<a asp-controller="Course" asp-action="Learn" asp-route-slug="@Model.Slug"
-				   class="btn btn-primary">
-					<i class="fas fa-play-circle me-2"></i>Bắt đầu học
-				</a>
+				<div class="d-flex gap-2">
+					<a asp-controller="Course" asp-action="Learn" asp-route-slug="@Model.Slug"
+					   class="btn btn-primary flex-grow-1">
+						<i class="fas fa-play-circle me-2"></i>Bắt đầu học
+					</a>
+					<button type="button" class="btn btn-outline-primary" onclick="startInstructorChat(@Model.CourseId)" title="Nhắn tin với giảng viên">
+						<i class="far fa-comments"></i>
+					</button>
+				</div>
 			}
 			else
 			{
@@ -686,6 +694,39 @@
 @section Scripts {
 	<script src="~/js/course/course-detail.js" asp-append-version="true"></script>
 	<script>
+		function startInstructorChat(courseId) {
+			const isAuthenticated = document.body.dataset.userAuthenticated === 'true';
+			if (!isAuthenticated) {
+				window.location.href = '/Account/Login?returnUrl=' + encodeURIComponent(window.location.pathname);
+				return;
+			}
+
+			// Gọi API tạo hoặc lấy cuộc hội thoại
+			fetch(`/api/chat/get-or-create?courseId=${courseId}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' }
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					// Chuyển hướng đến trang Chat với conversationId
+					window.location.href = `/Chat?conversationId=${data.conversationId}`;
+				} else {
+					if (typeof toastr !== 'undefined') {
+						toastr.error(data.message || 'Không thể tạo cuộc trò chuyện.');
+					} else {
+						alert(data.message || 'Không thể tạo cuộc trò chuyện.');
+					}
+				}
+			})
+			.catch(error => {
+				console.error('Error starting chat:', error);
+				if (typeof toastr !== 'undefined') {
+					toastr.error('Đã xảy ra lỗi khi khởi tạo cuộc trò chuyện.');
+				}
+			});
+		}
+
 		// Expand/Collapse all accordion
 		document.getElementById('expandAllBtn')?.addEventListener('click', function() {
 			const accordionItems = document.querySelectorAll('.accordion-collapse');
