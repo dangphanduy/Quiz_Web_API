@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Models.ViewModels;
@@ -77,7 +77,7 @@ namespace Quiz_Web.Services
 				if (hasPurchased)
 					return true;
 
-				var now = DateTime.UtcNow;
+				var now = DateTimeHelper.Now;
 				return _context.UserSubscriptions.Any(subscription =>
 					subscription.UserId == userId &&
 					subscription.Status == SubscriptionStatuses.Active &&
@@ -136,7 +136,7 @@ namespace Quiz_Web.Services
 					UserId = userId,
 					Rating = model.Rating,
 					Comment = model.Comment?.Trim(),
-					CreatedAt = DateTime.UtcNow,
+					CreatedAt = DateTimeHelper.Now,
 					IsApproved = true // Auto-approve reviews (can be changed to false for moderation)
 				};
 
@@ -172,7 +172,7 @@ namespace Quiz_Web.Services
 
 				review.Rating = model.Rating;
 				review.Comment = model.Comment?.Trim();
-				review.UpdatedAt = DateTime.UtcNow;
+				review.UpdatedAt = DateTimeHelper.Now;
 
 				_context.SaveChanges();
 

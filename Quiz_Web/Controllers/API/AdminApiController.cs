@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -97,7 +97,7 @@ namespace Quiz_Web.Controllers.API
                     Description = request.Description,
                     IconUrl = request.IconUrl,
                     DisplayOrder = request.DisplayOrder,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.Now
                 };
 
                 _context.CourseCategories.Add(category);
@@ -368,7 +368,7 @@ namespace Quiz_Web.Controllers.API
                     PasswordHash = HashHelper.ComputeHash(request.Password),
                     RoleId = request.RoleId,
                     Status = 1,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.Now
                 };
 
                 _context.Users.Add(user);
@@ -531,7 +531,7 @@ namespace Quiz_Web.Controllers.API
                     CoverUrl = request.CoverUrl,
                     CategoryId = request.CategoryId,
                     OwnerId = GetCurrentUserId(),
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTimeHelper.Now,
                     IsPublished = request.IsPublished
                 };
 
@@ -738,7 +738,7 @@ namespace Quiz_Web.Controllers.API
                     GradingMode = request.GradingMode ?? "auto",
                     MaxAttempts = request.MaxAttempts,
                     OwnerId = GetCurrentUserId(),
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.Now
                 };
 
                 _context.Tests.Add(test);

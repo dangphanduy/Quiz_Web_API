@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
@@ -23,7 +23,7 @@ namespace Quiz_Web.Services
 			try
 			{
 				var normalizedUsername = username.ToLower().Trim();
-				var now = DateTime.UtcNow;
+				var now = DateTimeHelper.Now;
 				var user = _context.Users
 					.Include(u => u.Role)
 					.Where(u => u.Username == normalizedUsername && u.PasswordHash == password)
@@ -103,7 +103,7 @@ namespace Quiz_Web.Services
 				token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
 				user.PasswordResetToken = token;
-				user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+				user.PasswordResetTokenExpiry = DateTimeHelper.Now.AddHours(1);
 
 				_context.SaveChanges();
 				return true;
@@ -136,7 +136,7 @@ namespace Quiz_Web.Services
 
 				// Store formatted as OTP|SecureToken
 				user.PasswordResetToken = $"{code}|{secureToken}";
-				user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(10);
+				user.PasswordResetTokenExpiry = DateTimeHelper.Now.AddMinutes(10);
 
 				_context.SaveChanges();
 				return true;
@@ -155,7 +155,7 @@ namespace Quiz_Web.Services
 			try
 			{
 				var user = GetUserByEmail(email);
-				if (user == null || string.IsNullOrEmpty(user.PasswordResetToken) || user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
+				if (user == null || string.IsNullOrEmpty(user.PasswordResetToken) || user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTimeHelper.Now)
 				{
 					return false;
 				}
@@ -180,7 +180,7 @@ namespace Quiz_Web.Services
 			try
 			{
 				_logger.LogInformation($"ValidatePasswordResetToken called with token: {token}");
-				_logger.LogInformation($"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
+				_logger.LogInformation($"Current UTC time: {DateTimeHelper.Now:yyyy-MM-dd HH:mm:ss}");
 
 				var user = _context.Users.FirstOrDefault(u => u.PasswordResetToken == token || (u.PasswordResetToken != null && u.PasswordResetToken.EndsWith("|" + token)));
 
@@ -199,7 +199,7 @@ namespace Quiz_Web.Services
 					return false;
 				}
 
-				bool isValid = user.PasswordResetTokenExpiry > DateTime.UtcNow;
+				bool isValid = user.PasswordResetTokenExpiry > DateTimeHelper.Now;
 				_logger.LogInformation($"Token is valid: {isValid}");
 
 				return isValid;
@@ -220,7 +220,7 @@ namespace Quiz_Web.Services
 				var user = _context.Users.FirstOrDefault(u => 
 					(u.PasswordResetToken == token || (u.PasswordResetToken != null && u.PasswordResetToken.EndsWith("|" + token)))
 					&& u.PasswordResetTokenExpiry.HasValue
-					&& u.PasswordResetTokenExpiry > DateTime.UtcNow);
+					&& u.PasswordResetTokenExpiry > DateTimeHelper.Now);
 
 				if (user == null) return false;
 

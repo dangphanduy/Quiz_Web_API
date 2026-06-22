@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Services.IServices;
@@ -41,7 +41,7 @@ public class CourseAccessService : ICourseAccessService
         if (isFreePublishedCourse)
             return true;
 
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = DateTimeHelper.Now;
         return await _context.UserSubscriptions
             .AsNoTracking()
             .AnyAsync(x => x.UserId == userId &&

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Services.IServices;
@@ -86,7 +86,7 @@ public class SubscriptionService : ISubscriptionService
         int userId,
         CancellationToken cancellationToken = default)
     {
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = DateTimeHelper.Now;
 
         return _context.UserSubscriptions
             .AsNoTracking()
@@ -103,7 +103,7 @@ public class SubscriptionService : ISubscriptionService
         int warningDays = 3,
         CancellationToken cancellationToken = default)
     {
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = DateTimeHelper.Now;
         var warningLimit = now.AddDays(warningDays);
 
         var subscription = await _context.UserSubscriptions

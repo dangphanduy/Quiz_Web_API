@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -78,12 +78,12 @@ namespace Quiz_Web.Controllers.API
                 }
 
                 // Check if test is open (if OpenAt and CloseAt are set)
-                if (test.OpenAt.HasValue && DateTime.UtcNow < test.OpenAt.Value)
+                if (test.OpenAt.HasValue && DateTimeHelper.Now < test.OpenAt.Value)
                 {
                     return BadRequest(new { success = false, message = "Bài kiểm tra chưa mở" });
                 }
 
-                if (test.CloseAt.HasValue && DateTime.UtcNow > test.CloseAt.Value)
+                if (test.CloseAt.HasValue && DateTimeHelper.Now > test.CloseAt.Value)
                 {
                     return BadRequest(new { success = false, message = "Bài kiểm tra đã đóng" });
                 }
@@ -158,8 +158,8 @@ namespace Quiz_Web.Controllers.API
                 {
                     TestId = request.TestId,
                     UserId = userId,
-                    StartedAt = DateTime.UtcNow.AddSeconds(-request.TimeSpentSec),
-                    SubmittedAt = DateTime.UtcNow,
+                    StartedAt = DateTimeHelper.Now.AddSeconds(-request.TimeSpentSec),
+                    SubmittedAt = DateTimeHelper.Now,
                     Status = "Graded",
                     TimeSpentSec = request.TimeSpentSec,
                     // ✅ FIX: Luôn tính MaxScore từ tổng điểm Questions, không dùng test.MaxScore
@@ -238,7 +238,7 @@ namespace Quiz_Web.Controllers.API
                         IsCorrect = isCorrect,
                         Score = questionScore,
                         AutoGraded = true,
-                        GradedAt = DateTime.UtcNow
+                        GradedAt = DateTimeHelper.Now
                     };
 
                     _context.AttemptAnswers.Add(attemptAnswer);

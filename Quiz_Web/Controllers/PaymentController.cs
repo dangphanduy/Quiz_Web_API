@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -110,7 +110,7 @@ public class PaymentController : Controller
                 TotalAmount = total,
                 Currency = "VND",
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.Now
             };
             _context.Orders.Add(order);
             await _context.SaveChangesAsync(cancellationToken);
@@ -130,7 +130,7 @@ public class PaymentController : Controller
                     PricePaid = item.Course.Price,
                     Currency = "VND",
                     Status = "Pending",
-                    PurchasedAt = DateTime.UtcNow
+                    PurchasedAt = DateTimeHelper.Now
                 });
             }
 
@@ -210,7 +210,7 @@ public class PaymentController : Controller
                 TotalAmount = plan.Price,
                 Currency = "VND",
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.Now
             };
             _context.Orders.Add(order);
             await _context.SaveChangesAsync(cancellationToken);
@@ -455,7 +455,7 @@ public class PaymentController : Controller
                 return;
             }
 
-            var paidAt = DateTime.UtcNow;
+            var paidAt = DateTimeHelper.Now;
             payment.Status = "Paid";
             payment.PaidAt = paidAt;
             payment.TransactionId = transactionId;
@@ -577,7 +577,7 @@ public class PaymentController : Controller
             .Select(x => x.CourseId)
             .ToListAsync(cancellationToken);
 
-        var now = DateTime.UtcNow;
+        var now = DateTimeHelper.Now;
         foreach (var courseId in ids.Except(existingPaidCourseIds))
         {
             _context.CoursePurchases.Add(new CoursePurchase
@@ -616,7 +616,7 @@ public class PaymentController : Controller
             return;
 
         _context.CartItems.RemoveRange(cartItems);
-        cart.UpdatedAt = DateTime.UtcNow;
+        cart.UpdatedAt = DateTimeHelper.Now;
     }
 
     public sealed class CoursePaymentRequest

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +48,7 @@ namespace Quiz_Web.Controllers.API
             var token = _tokenService.GenerateJwtToken(user);
 
             // Update last login
-            user.LastLoginAt = DateTime.UtcNow;
+            user.LastLoginAt = DateTimeHelper.Now;
             await _context.SaveChangesAsync();
 
             // Sign in Cookie for hybrid MVC support
@@ -120,8 +120,8 @@ namespace Quiz_Web.Controllers.API
                     AvatarUrl = externalUser.AvatarUrl,
                     RoleId = 2, // Default Role (Student/User)
                     Status = 1,
-                    CreatedAt = DateTime.UtcNow,
-                    LastLoginAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.Now,
+                    LastLoginAt = DateTimeHelper.Now
                 };
 
                 _context.Users.Add(user);
@@ -135,7 +135,7 @@ namespace Quiz_Web.Controllers.API
             else
             {
                 // Update login details
-                user.LastLoginAt = DateTime.UtcNow;
+                user.LastLoginAt = DateTimeHelper.Now;
                 if (string.IsNullOrEmpty(user.AvatarUrl) && !string.IsNullOrEmpty(externalUser.AvatarUrl))
                 {
                     user.AvatarUrl = externalUser.AvatarUrl;

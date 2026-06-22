@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -98,7 +98,7 @@ namespace Quiz_Web.Controllers.API
                         PricePaid = item.Course.Price,
                         Currency = "VND",
                         Status = "Pending",
-                        PurchasedAt = DateTime.UtcNow
+                        PurchasedAt = DateTimeHelper.Now
                     });
                 }
                 await _context.SaveChangesAsync();

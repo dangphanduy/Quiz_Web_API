@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Models.Recommendations;
@@ -96,7 +96,7 @@ public sealed class RecommendationService : IRecommendationService
 
 		// Giai đoạn 1 - Retrieval: giữ tối đa 30 ứng viên liên quan.
 		var candidates = RetrieveCandidates(currentFeatures, catalogue);
-		var now = DateTime.UtcNow;
+		var now = DateTimeHelper.Now;
 
 		// Giai đoạn 2 - Ranking: tính đầy đủ các thành phần trọng số.
 		return candidates

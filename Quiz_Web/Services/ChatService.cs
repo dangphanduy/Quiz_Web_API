@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -80,7 +80,7 @@ public class ChatService : IChatService
                 StudentId = studentId,
                 InstructorId = instructorId,
                 CourseId = courseId,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.Now
             };
 
             _context.ChatConversations.Add(conversation);
@@ -151,7 +151,7 @@ public class ChatService : IChatService
             MessageType = messageType,
             FileName = fileName,
             IsRead = false,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeHelper.Now
         };
 
         _context.ChatMessages.Add(message);

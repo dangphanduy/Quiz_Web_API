@@ -149,7 +149,7 @@ namespace Quiz_Web.Controllers
 			user.Email = user.Email.ToLower().Trim();
 			user.PasswordHash = HashHelper.ComputeHash(password);
 			user.Status = 1;
-			user.CreatedAt = DateTime.UtcNow;
+			user.CreatedAt = DateTimeHelper.Now;
 
 			_context.Users.Add(user);
 			await _context.SaveChangesAsync();
@@ -371,7 +371,7 @@ namespace Quiz_Web.Controllers
 			course.Slug = course.Slug.ToLower().Trim();
 			course.Summary = course.Summary?.Trim();
 			course.OwnerId = GetCurrentUserId();
-			course.CreatedAt = DateTime.UtcNow;
+			course.CreatedAt = DateTimeHelper.Now;
 
 			_context.Courses.Add(course);
 			await _context.SaveChangesAsync();
@@ -505,7 +505,7 @@ namespace Quiz_Web.Controllers
 			test.Visibility = test.Visibility ?? "private";
 			test.GradingMode = test.GradingMode ?? "auto";
 			test.OwnerId = GetCurrentUserId();
-			test.CreatedAt = DateTime.UtcNow;
+			test.CreatedAt = DateTimeHelper.Now;
 
 			_context.Tests.Add(test);
 			await _context.SaveChangesAsync();
@@ -705,7 +705,7 @@ namespace Quiz_Web.Controllers
 		//	classEntity.Code = classEntity.Code.ToUpper().Trim();
 		//	classEntity.Term = classEntity.Term?.Trim();
 		//	classEntity.Description = classEntity.Description?.Trim();
-		//	classEntity.CreatedAt = DateTime.UtcNow;
+		//	classEntity.CreatedAt = DateTimeHelper.Now;
 		//	classEntity.TeacherId = GetCurrentUserId();
 
 		//	_context.Classes.Add(classEntity);
@@ -778,7 +778,7 @@ namespace Quiz_Web.Controllers
 			{
 				TotalUsers = await _context.Users.CountAsync(),
 				ActiveUsers = await _context.Users.Where(u => u.Status == 1).CountAsync(),
-				NewUsersThisMonth = await _context.Users.Where(u => u.CreatedAt >= DateTime.UtcNow.AddDays(-30)).CountAsync(),
+				NewUsersThisMonth = await _context.Users.Where(u => u.CreatedAt >= DateTimeHelper.Now.AddDays(-30)).CountAsync(),
 				UsersByRole = await _context.Users.Include(u => u.Role).GroupBy(u => u.Role.Name).Select(g => new { Role = g.Key, Count = g.Count() }).ToListAsync()
 			};
 			return View(data);
@@ -861,7 +861,7 @@ namespace Quiz_Web.Controllers
 				.SumAsync(p => (decimal?)p.PricePaid) ?? 0;
 
 			var monthlyGrossRevenue = await _context.CoursePurchases
-				.Where(p => p.Status == "Paid" && p.PurchasedAt >= DateTime.UtcNow.AddDays(-30))
+				.Where(p => p.Status == "Paid" && p.PurchasedAt >= DateTimeHelper.Now.AddDays(-30))
 				.SumAsync(p => (decimal?)p.PricePaid) ?? 0;
 
 			Console.WriteLine($"Total Gross Revenue: {totalGrossRevenue}");
