@@ -69,25 +69,11 @@ namespace Quiz_Web.Controllers
             
             if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out int userIdInt))
             {
-                // Lấy user interests
-                var userInterests = await _context.UserInterests
-                    .Where(ui => ui.UserId == userIdInt)
-                    .Select(ui => ui.CategoryId)
-                    .ToListAsync();
+                recommendedCourses = _courseService.GetNextCoursesToLearn(userIdInt, 10);
                 
-                if (userInterests.Any())
+                if (!recommendedCourses.Any())
                 {
-                    // Lấy courses từ các categories user quan tâm
-                    recommendedCourses = await _context.Courses
-                        .Include(c => c.Owner)
-                        .Include(c => c.Category)
-                        .Where(c => c.IsPublished 
-                                 && c.CategoryId.HasValue 
-                                 && userInterests.Contains(c.CategoryId.Value))
-                        .OrderByDescending(c => c.AverageRating)
-                        .ThenByDescending(c => c.TotalReviews)
-                        .Take(10)
-                        .ToListAsync();
+                    recommendedCourses = _courseService.GetRecommendedCourses(userIdInt, 10);
                 }
             }
             
@@ -129,42 +115,10 @@ namespace Quiz_Web.Controllers
         }
 
         [Authorize]
-        [Route("/checkout")]
-        public async Task<IActionResult> Checkout()
+        [Route("/home-checkout")]
+        public IActionResult Checkout()
         {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var cartItems = await _cartService.GetCartItemsAsync(userId);
-                
-                if (!cartItems.Any())
-                {
-                    TempData["Message"] = "Giỏ hàng của bạn đang trống";
-                    return RedirectToAction("Index", "Home");
-                }
-
-                var viewModel = new CheckoutViewModel
-                {
-                    CartItems = cartItems.Select(ci => new CartItemViewModel
-                    {
-                        CourseId = ci.CourseId,
-                        Title = ci.Course.Title,
-                        CoverUrl = ci.Course.CoverUrl,
-                        Price = ci.Course.Price,
-                        InstructorName = ci.Course.Owner.FullName,
-                        AddedAt = ci.AddedAt
-                    }).ToList(),
-                    Total = cartItems.Sum(ci => ci.Course.Price)
-                };
-
-                return View(viewModel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading checkout page");
-                TempData["Error"] = "Có lỗi xảy ra khi tải trang thanh toán";
-                return RedirectToAction("Index");
-            }
+            return RedirectToAction("Index", "Checkout");
         }
 
         private int GetCurrentUserId()

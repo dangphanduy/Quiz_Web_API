@@ -4,10 +4,10 @@ using Quiz_Web.Models.EF;
 using Quiz_Web.Services;
 using Quiz_Web.Services.IServices;
 using Ganss.Xss;
-using Quiz_Web.Models.MoMoPayment;
 using Serilog;
 using Serilog.Formatting.Elasticsearch;
 using Quiz_Web.Extensions;
+using Quiz_Web.Models.PayOSPayment;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,11 +93,24 @@ builder.Services.AddDbContext<LearningPlatformContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")),
     ServiceLifetime.Scoped);
 
-// Configure MoMo settings
-builder.Services.Configure<MoMoSettings>(builder.Configuration.GetSection("MoMoSettings"));
+// Configure PayOS settings
+builder.Services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOSSettings"));
 
-// Register HttpClient for MoMoPaymentService
-builder.Services.AddHttpClient<IMoMoPaymentService, MoMoPaymentService>();
+// Register PayOS Client as Singleton
+builder.Services.AddSingleton(sp =>
+{
+    var settings = builder.Configuration.GetSection("PayOSSettings").Get<PayOSSettings>()
+                   ?? throw new InvalidOperationException("PayOSSettings is missing from configuration.");
+    return new PayOS.PayOSClient(new PayOS.PayOSOptions
+    {
+        ClientId = settings.ClientId,
+        ApiKey = settings.ApiKey,
+        ChecksumKey = settings.ChecksumKey
+    });
+});
+
+// Register IPayOSService
+builder.Services.AddScoped<IPayOSService, PayOSService>();
 
 builder.Services.AddHttpClient<Quiz_Web.Services.IServices.ITokenService, Quiz_Web.Services.TokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -115,6 +128,9 @@ builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddSingleton<IStorageService, GoogleCloudStorageService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<ICourseAccessService, CourseAccessService>();
+builder.Services.AddScoped<ICertificateService, CertificateService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddSignalR();
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Register background service for course recommendations
@@ -173,6 +189,7 @@ app.MapStaticAssets();
 
 // ? Map API Controllers FIRST (before MVC routes)
 app.MapControllers();
+app.MapHub<Quiz_Web.Hubs.ChatHub>("/chatHub");
 
 // Add explicit route for Onboarding
 app.MapControllerRoute(
@@ -184,7 +201,7 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "checkout",
     pattern: "checkout",
-    defaults: new { controller = "Home", action = "Checkout" });
+    defaults: new { controller = "Checkout", action = "Index" });
 
 // Add route for Checkout controller
 app.MapControllerRoute(
@@ -199,3 +216,5 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+public partial class Program { }

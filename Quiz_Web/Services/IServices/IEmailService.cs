@@ -4,5 +4,6 @@ namespace Quiz_Web.Services.IServices
 	{
 		Task<bool> SendPasswordResetEmail(string toEmail, string resetLink);
 		Task<bool> SendForgotPasswordCodeEmail(string toEmail, string code);
+		Task<bool> SendCertificateEmailAsync(string toEmail, string userName, string courseName, byte[] certificateImageBytes, string fileName);
 	}
 }

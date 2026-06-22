@@ -1,6 +1,7 @@
 ﻿@model List<Quiz_Web.Models.Entities.Course>
 @{
     ViewData["Title"] = "Danh sách khóa học";
+    var accessibleCourseIds = ViewBag.CourseAccessIds as HashSet<int> ?? new HashSet<int>();
 }
 
 <!-- Courses Grid with Filters -->
@@ -264,11 +265,20 @@
                                                 <span class="btn btn-outline-primary flex-fill" style="white-space: nowrap;">
                                                     Xem chi tiết
                                                 </span>
-                                                <button class="btn btn-primary" 
-                                                        onclick="event.preventDefault(); event.stopPropagation(); addToCart(@course.CourseId);"
-                                                        title="Thêm vào giỏ hàng">
-                                                    <i class="fas fa-cart-plus"></i>
-                                                </button>
+                                                @if (accessibleCourseIds.Contains(course.CourseId))
+                                                {
+                                                    <span class="btn btn-success disabled" title="Đã có quyền truy cập">
+                                                        <i class="fas fa-check-circle"></i> Đã mua
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-primary" 
+                                                            onclick="event.preventDefault(); event.stopPropagation(); addToCart(@course.CourseId);"
+                                                            title="Thêm vào giỏ hàng">
+                                                        <i class="fas fa-cart-plus"></i>
+                                                    </button>
+                                                }
                                             </div>
                                         </div>
                                     </div>

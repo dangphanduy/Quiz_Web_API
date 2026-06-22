@@ -71,9 +71,17 @@ namespace Quiz_Web.Services
 		{
 			try
 			{
-				// Check if user purchased the course with Paid status
-				return _context.CoursePurchases
+				var hasPurchased = _context.CoursePurchases
 					.Any(p => p.CourseId == courseId && p.BuyerId == userId && p.Status == "Paid");
+
+				if (hasPurchased)
+					return true;
+
+				var now = DateTime.UtcNow;
+				return _context.UserSubscriptions.Any(subscription =>
+					subscription.UserId == userId &&
+					subscription.Status == SubscriptionStatuses.Active &&
+					subscription.EndDate >= now);
 			}
 			catch (Exception ex)
 			{
@@ -86,6 +94,12 @@ namespace Quiz_Web.Services
 		{
 			try
 			{
+				var isOwner = _context.Courses
+					.Any(course => course.CourseId == courseId && course.OwnerId == userId);
+
+				if (isOwner)
+					return false;
+
 				// User can review if:
 				// 1. They purchased the course, AND
 				// 2. They haven't reviewed it yet
