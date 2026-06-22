@@ -1,8 +1,6 @@
-﻿using System.Diagnostics;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Quiz_Web.Models;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.ViewModels;
 using Quiz_Web.Services;
@@ -129,12 +127,6 @@ namespace Quiz_Web.Controllers
                 throw new UnauthorizedAccessException("User not authenticated");
             }
             return userId;
-        }
-
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
         // Debug action to test Onboarding view

@@ -1,25 +1,55 @@
-﻿@model ErrorViewModel
+@model Quiz_Web.Models.ErrorViewModel
 @{
+    Layout = null;
     ViewData["Title"] = "Error";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Error - Quiz Web</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f6f7f9;
+            color: #222;
+        }
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+        main {
+            max-width: 720px;
+            margin: 12vh auto;
+            padding: 32px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+        }
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+        h1 {
+            margin: 0 0 12px;
+            font-size: 28px;
+        }
+
+        p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        code {
+            background: #f1f3f5;
+            padding: 2px 6px;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Đã xảy ra lỗi</h1>
+        <p>Hệ thống đang gặp sự cố. Vui lòng thử lại sau.</p>
+        @if (!string.IsNullOrWhiteSpace(Model?.RequestId))
+        {
+            <p>Mã truy vết: <code>@Model.RequestId</code></p>
+        }
+    </main>
+</body>
+</html>
