@@ -76,67 +76,67 @@ jobs:
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
     docker-build-and-push:
-    name: Build & Push to GCP Artifact Registry
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
-    permissions:
-      contents: read
-      id-token: write
+      name: Build & Push to GCP Artifact Registry
+      runs-on: ubuntu-latest
+      needs: build-and-test
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+      permissions:
+        contents: read
+        id-token: write
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
 
-      # 1. Đăng nhập vào Google Cloud bằng Key JSON từ Secret
-      - name: Google Auth
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+        # 1. Đăng nhập vào Google Cloud bằng Key JSON từ Secret
+        - name: Google Auth
+          id: auth
+          uses: google-github-actions/auth@v2
+          with:
+            credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # 2. Thiết lập gcloud CLI trên máy ảo GitHub
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        # 2. Thiết lập gcloud CLI trên máy ảo GitHub
+        - name: Set up Cloud SDK
+          uses: google-github-actions/setup-gcloud@v2
 
-      # 3. Cấu hình Docker để xác thực với Artifact Registry của Google
-      - name: Configure Docker
-        run: |
-          gcloud auth configure-docker asia-southeast1-docker.pkg.dev
+        # 3. Cấu hình Docker để xác thực với Artifact Registry của Google
+        - name: Configure Docker
+          run: |
+            gcloud auth configure-docker asia-southeast1-docker.pkg.dev
 
-      # 4. Build Docker image từ Dockerfile và push lên Google Artifact Registry
-      - name: Build and Push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiz-web-api/api:latest
-            asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiz-web-api/api:${{ github.sha }}
+        # 4. Build Docker image từ Dockerfile và push lên Google Artifact Registry
+        - name: Build and Push Docker image
+          uses: docker/build-push-action@v6
+          with:
+            context: .
+            push: true
+            tags: |
+              asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiz-web-api/api:latest
+              asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiz-web-api/api:${{ github.sha }}
 
-  deploy:
-    name: Deploy to Google Cloud Run
-    runs-on: ubuntu-latest
-    needs: docker-build-and-push
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
-    steps:
-      # 1. Đăng nhập vào Google Cloud
-      - name: Google Auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+    deploy:
+      name: Deploy to Google Cloud Run
+      runs-on: ubuntu-latest
+      needs: docker-build-and-push
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+      steps:
+        # 1. Đăng nhập vào Google Cloud
+        - name: Google Auth
+          uses: google-github-actions/auth@v2
+          with:
+            credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # 2. Deploy Docker image lên Cloud Run
-      - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: quiz-web-api-service
-          region: asia-southeast1
-          image: asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiz-web-api/api:${{ github.sha }}
-          # Truyền các tham số cấu hình bổ sung
-          flags: |
-            --add-cloudsql-instances=${{ secrets.GCP_SQL_INSTANCE }}
-            --allow-unauthenticated
-          # Cấu hình Connection String kết nối trực tiếp đến Cloud SQL Server
-          env_vars: |
-            ConnectionStrings__DefaultConnection=Server=127.0.0.1;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
+        # 2. Deploy Docker image lên Cloud Run
+        - name: Deploy to Cloud Run
+          uses: google-github-actions/deploy-cloudrun@v2
+          with:
+            service: quiz-web-api-service
+            region: asia-southeast1
+            image: asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiz-web-api/api:${{ github.sha }}
+            # Truyền các tham số cấu hình bổ sung
+            flags: |
+              --add-cloudsql-instances=${{ secrets.GCP_SQL_INSTANCE }}
+              --allow-unauthenticated
+            # Cấu hình Connection String kết nối trực tiếp đến Cloud SQL Server
+            env_vars: |
+              ConnectionStrings__DefaultConnection=Server=127.0.0.1;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
