@@ -142,6 +142,12 @@ namespace Quiz_Web.Services
                     return false;
                 }
 
+                if (course.Price <= 0)
+                {
+                    _logger.LogWarning("Free course {CourseId} should not be added to cart for user {UserId}", courseId, userId);
+                    return false;
+                }
+
                 var alreadyPurchased = await _courseAccessService.CheckCourseAccessAsync(userId, courseId);
 
                 if (alreadyPurchased)

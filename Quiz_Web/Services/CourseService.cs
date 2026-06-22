@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Quiz_Web.Helper;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Models.ViewModels;
@@ -293,6 +294,8 @@ namespace Quiz_Web.Services
 
 		public Course? CreateCourseWithStructure(CourseBuilderViewModel model, int ownerId)
 		{
+			RepairBuilderText(model);
+
 			using var transaction = _context.Database.BeginTransaction();
 			try
 			{
@@ -486,6 +489,8 @@ namespace Quiz_Web.Services
 
 		public Course? UpdateCourseStructure(int courseId, CourseBuilderViewModel model, int ownerId)
 		{
+			RepairBuilderText(model);
+
 			using var transaction = _context.Database.BeginTransaction();
 			try
 			{
@@ -1237,6 +1242,34 @@ namespace Quiz_Web.Services
 					.OrderByDescending(c => c.CreatedAt)
 					.Take(count)
 					.ToList();
+			}
+		}
+
+		private static void RepairBuilderText(CourseBuilderViewModel model)
+		{
+			model.Title = TextEncodingRepair.Repair(model.Title) ?? model.Title;
+			model.Summary = TextEncodingRepair.Repair(model.Summary);
+
+			foreach (var chapter in model.Chapters)
+			{
+				chapter.Title = TextEncodingRepair.Repair(chapter.Title) ?? chapter.Title;
+				chapter.Description = TextEncodingRepair.Repair(chapter.Description);
+
+				foreach (var lesson in chapter.Lessons)
+				{
+					lesson.Title = TextEncodingRepair.Repair(lesson.Title) ?? lesson.Title;
+					lesson.Description = TextEncodingRepair.Repair(lesson.Description);
+
+					foreach (var content in lesson.Contents)
+					{
+						content.Title = TextEncodingRepair.Repair(content.Title);
+						content.Body = TextEncodingRepair.Repair(content.Body);
+						content.FlashcardSetTitle = TextEncodingRepair.Repair(content.FlashcardSetTitle);
+						content.FlashcardSetDesc = TextEncodingRepair.Repair(content.FlashcardSetDesc);
+						content.TestTitle = TextEncodingRepair.Repair(content.TestTitle);
+						content.TestDesc = TextEncodingRepair.Repair(content.TestDesc);
+					}
+				}
 			}
 		}
 	}

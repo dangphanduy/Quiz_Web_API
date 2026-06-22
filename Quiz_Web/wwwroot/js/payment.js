@@ -113,6 +113,14 @@ class PaymentHandler {
 
             const result = await response.json();
 
+            if (result && result.redirectUrl) {
+                this.showSuccess(result.message || 'Đã ghi danh khóa học miễn phí');
+                setTimeout(() => {
+                    window.location.href = result.redirectUrl;
+                }, 600);
+                return;
+            }
+
             if (!result || !result.payUrl) {
                 this.showError(result.message || 'Không tạo được liên kết thanh toán PayOS');
                 return;
