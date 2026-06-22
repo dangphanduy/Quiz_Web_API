@@ -1,4 +1,4 @@
-﻿@inject Quiz_Web.Services.IServices.ICourseService CourseService
+@inject Quiz_Web.Services.IServices.ICourseService CourseService
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -93,6 +93,19 @@
                         <li class="nav-item d-none d-xl-flex">
                             <a class="nav-link text-dark px-3" href="@Url.Action("Library", "Library")" data-i18n="nav.learning">Học tập</a>
                         </li>
+
+                        <!-- Tin nhắn -->
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item ms-1 me-2">
+                                <a class="nav-link px-2 text-dark position-relative" href="@Url.Action("Index", "Chat")" title="Tin nhắn">
+                                    <i class="bi bi-chat-text fs-5"></i>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="globalChatUnreadBadge" style="font-size: 9px; padding: 3px 6px;">
+                                        0
+                                    </span>
+                                </a>
+                            </li>
+                        }
 
                         <!-- Wishlist/Heart Icon -->
                         @* <li class="nav-item ms-2">
@@ -263,5 +276,44 @@
     <script src="~/js/course-purchase-check.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
     @await Html.PartialAsync("_Toastr")
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                function updateGlobalChatBadge() {
+                    fetch("/api/chat/conversations")
+                        .then(response => {
+                            if (!response.ok) throw new Error("Network response not ok");
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success && data.conversations) {
+                                let totalUnread = 0;
+                                data.conversations.forEach(c => {
+                                    totalUnread += c.unreadCount || 0;
+                                });
+                                const badge = document.getElementById("globalChatUnreadBadge");
+                                if (badge) {
+                                    if (totalUnread > 0) {
+                                        badge.textContent = totalUnread;
+                                        badge.classList.remove("d-none");
+                                    } else {
+                                        badge.classList.add("d-none");
+                                    }
+                                }
+                            }
+                        })
+                        .catch(err => console.error("Lỗi lấy thông tin tin nhắn:", err));
+                }
+
+                // Chạy một lần khi load trang
+                updateGlobalChatBadge();
+
+                // Cập nhật định kỳ mỗi 60 giây (ngoài realtime từ SignalR trên trang chat)
+                setInterval(updateGlobalChatBadge, 60000);
+            });
+        </script>
+    }
 </body>
 </html>

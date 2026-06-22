@@ -1,0 +1,120 @@
+@{
+    ViewData["Title"] = "Tin nhắn";
+}
+
+<input type="hidden" id="currentUserId" value="@ViewBag.CurrentUserId" />
+
+<div class="container py-4">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="height: 75vh;">
+        <div class="row g-0 h-100">
+            <!-- Sidebar: Conversations List (Left Column) -->
+            <div class="col-12 col-md-4 border-end bg-light h-100 d-flex flex-column" style="min-height: 100%;">
+                <!-- Search Box -->
+                <div class="p-3 bg-white border-bottom">
+                    <div class="input-group rounded-pill overflow-hidden border">
+                        <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="searchChat" class="form-control border-0 px-2" placeholder="Tìm kiếm người nhắn..." style="box-shadow: none;">
+                    </div>
+                </div>
+                <!-- Conversations Scroll Area -->
+                <div class="flex-grow-1 overflow-y-auto" id="conversationsList" style="max-height: calc(75vh - 72px);">
+                    <!-- Dynamic rendering through chat.js -->
+                    <div class="d-flex justify-content-center my-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Area (Right Column) -->
+            <div class="col-12 col-md-8 h-100 d-flex flex-column bg-white">
+                <!-- Welcome Area (if no conversation selected) -->
+                <div id="chatWelcomeArea" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center p-5">
+                    <div class="mb-4">
+                        <i class="bi bi-chat-dots text-primary" style="font-size: 5rem; opacity: 0.3;"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark mb-2">Hộp thư hỗ trợ học tập</h4>
+                    <p class="text-muted" style="max-width: 360px;">Hãy chọn một cuộc hội thoại từ danh sách bên trái để bắt đầu thảo luận với học viên hoặc người tạo khóa học.</p>
+                </div>
+
+                <!-- Active Chat Container -->
+                <div id="chatContentArea" class="flex-grow-1 d-none d-flex flex-column h-100">
+                    <!-- Chat Header -->
+                    <div class="p-3 border-bottom d-flex align-items-center bg-white">
+                        <img id="chatPartnerAvatar" src="" class="rounded-circle me-3" width="48" height="48" alt="Avatar">
+                        <div class="min-width-0">
+                            <h6 id="chatPartnerName" class="mb-0 fw-bold text-dark">Name</h6>
+                            <small id="chatPartnerCourse" class="text-muted text-truncate d-block" style="max-width: 450px;">Course Title</small>
+                        </div>
+                    </div>
+
+                    <!-- Messages Scroll Area -->
+                    <div class="flex-grow-1 p-3 bg-light overflow-y-auto" id="chatMessagesContainer" style="max-height: calc(75vh - 150px); overflow-x: hidden;">
+                        <!-- Message Bubbles dynamically rendered by chat.js -->
+                    </div>
+
+                    <!-- Input Bar -->
+                    <div class="p-3 border-top bg-white">
+                        <div class="input-group align-items-center">
+                            <!-- Attachment button -->
+                            <button type="button" class="btn btn-outline-secondary border-0 rounded-circle p-2 me-2" id="btnAttach" title="Đính kèm tệp">
+                                <i class="bi bi-paperclip fs-5"></i>
+                            </button>
+                            <input type="file" id="fileInput" class="d-none" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.docx,.doc,.zip,.rar,.txt" />
+                            
+                            <!-- Text Input -->
+                            <input type="text" id="txtMessage" class="form-control rounded-pill border px-4 py-2 me-2" placeholder="Nhập tin nhắn..." autocomplete="off">
+                            
+                            <!-- Send button -->
+                            <button type="button" class="btn btn-primary rounded-circle p-2 d-flex align-items-center justify-content-center" id="btnSend" style="width: 40px; height: 40px;" title="Gửi">
+                                <i class="bi bi-send-fill text-white fs-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .msg-bubble-wrapper .max-width-70 {
+            max-width: 70%;
+        }
+        .max-width-250 {
+            max-width: 250px;
+        }
+        .chat-user-item {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .chat-user-item:hover {
+            background-color: rgba(13, 110, 253, 0.05) !important;
+        }
+        .chat-user-item.active {
+            background-color: rgba(13, 110, 253, 0.1) !important;
+            border-left: 4px solid #0d6efd !important;
+        }
+        #chatMessagesContainer::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chatMessagesContainer::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+        #conversationsList::-webkit-scrollbar {
+            width: 6px;
+        }
+        #conversationsList::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="~/lib/signalr/signalr.min.js"></script>
+    <script src="~/js/chat.js" asp-append-version="true"></script>
+}

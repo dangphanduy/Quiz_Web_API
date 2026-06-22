@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Quiz_Web.Models.EF;
 
@@ -11,9 +12,11 @@ using Quiz_Web.Models.EF;
 namespace Quiz_Web.Migrations
 {
     [DbContext(typeof(LearningPlatformContext))]
-    partial class LearningPlatformContextModelSnapshot : ModelSnapshot
+    [Migration("20260622035711_AddChatEntities")]
+    partial class AddChatEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
