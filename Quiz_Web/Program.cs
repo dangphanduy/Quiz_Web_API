@@ -6,7 +6,6 @@ using Quiz_Web.Services.IServices;
 using Ganss.Xss;
 using Serilog;
 using Serilog.Events;
-using Serilog.Formatting.Elasticsearch;
 using Quiz_Web.Extensions;
 using Quiz_Web.Models.PayOSPayment;
 
@@ -26,10 +25,6 @@ Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.Kafka(
-        formatter: new ElasticsearchJsonFormatter(),
-        bootstrapServers: builder.Configuration["Serilog:WriteTo:1:Args:bootstrapServers"] ?? "localhost:9094",
-        topic: "quiz-logs")
     .WriteTo.Logger(lc => lc
             .Filter.ByIncludingOnly(IsHttpRequestLog)
             .WriteTo.File(
