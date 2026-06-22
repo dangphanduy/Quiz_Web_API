@@ -137,4 +137,4 @@ jobs:
             --allow-unauthenticated
             --add-cloudsql-instances=${{ secrets.GCP_SQL_INSTANCE }}
           env_vars: |
-            ConnectionStrings__DefaultConnection=Server=localhost;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
+            ConnectionStrings__DefaultConnection=Server=127.0.0.1,1433;Database=LearningPlatform;User Id=sqlserver;Password=${{ secrets.DB_PASSWORD }};TrustServerCertificate=True;MultipleActiveResultSets=True
