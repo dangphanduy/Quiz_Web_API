@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
-using Quiz_Web.Models.MoMoPayment;
+using Quiz_Web.Models.PayOSPayment;
+using PayOS.Models.Webhooks;
+using PayOS.Models.V2.PaymentRequests;
 using Quiz_Web.Services.IServices;
 using System.Data;
 using System.Security.Claims;
@@ -12,7 +14,7 @@ namespace Quiz_Web.Controllers;
 
 public class PaymentController : Controller
 {
-    private readonly IMoMoPaymentService _momoService;
+    private readonly IPayOSService _payOSService;
     private readonly ICartService _cartService;
     private readonly ISubscriptionService _subscriptionService;
     private readonly ICourseAccessService _courseAccessService;
@@ -20,14 +22,14 @@ public class PaymentController : Controller
     private readonly ILogger<PaymentController> _logger;
 
     public PaymentController(
-        IMoMoPaymentService momoService,
+        IPayOSService payOSService,
         ICartService cartService,
         ISubscriptionService subscriptionService,
         ICourseAccessService courseAccessService,
         LearningPlatformContext context,
         ILogger<PaymentController> logger)
     {
-        _momoService = momoService;
+        _payOSService = payOSService;
         _cartService = cartService;
         _subscriptionService = subscriptionService;
         _courseAccessService = courseAccessService;
@@ -37,9 +39,7 @@ public class PaymentController : Controller
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> CreateMoMoPayment(
-        [FromBody] CoursePaymentRequest? request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> CreatePayOSPayment(CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
         var cartItems = await _cartService.GetCartItemsAsync(userId);
@@ -96,40 +96,47 @@ public class PaymentController : Controller
                 });
             }
 
-            var merchantOrderId = $"ORDER_{order.OrderId}_{DateTime.UtcNow:yyyyMMddHHmmss}";
             var payment = new Payment
             {
                 OrderId = order.OrderId,
-                Provider = "MoMo",
+                Provider = "PayOS",
                 Amount = total,
                 Currency = "VND",
                 Status = "Pending",
                 Purpose = PaymentPurposes.Course,
-                RawPayload = merchantOrderId
+                RawPayload = order.OrderId.ToString(),
+                ProviderRef = order.OrderId.ToString()
             };
             _context.Payments.Add(payment);
             await _context.SaveChangesAsync(cancellationToken);
 
-            var momo = await _momoService.CreatePaymentAsync(
+            var payosResult = await _payOSService.CreatePaymentLinkAsync(
                 total,
-                "Thanh toán giỏ hàng",
-                merchantOrderId);
+                "Thanh toan gio hang",
+                order.OrderId);
 
-            if (momo.resultCode != 0 || string.IsNullOrWhiteSpace(momo.payUrl))
+            if (payosResult == null || string.IsNullOrWhiteSpace(payosResult.CheckoutUrl))
             {
                 payment.Status = "Failed";
                 order.Status = "Failed";
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return Json(new { success = false, message = momo.message });
+                return Json(new { success = false, message = "Không tạo được liên kết thanh toán PayOS." });
             }
 
-            // ProviderRef giữ merchant order id. TransactionId được lưu ở cột riêng.
-            payment.ProviderRef = momo.orderId;
-            await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            return Json(new { success = true, payUrl = momo.payUrl, orderId = merchantOrderId });
+            return Json(new { 
+                success = true, 
+                payUrl = payosResult.CheckoutUrl, 
+                orderId = order.OrderId.ToString(),
+                qrCode = payosResult.QrCode,
+                bin = payosResult.Bin,
+                accountNumber = payosResult.AccountNumber,
+                accountName = payosResult.AccountName,
+                amount = payosResult.Amount,
+                description = payosResult.Description
+            });
         }
         catch (Exception ex)
         {
@@ -140,21 +147,20 @@ public class PaymentController : Controller
     }
 
     /// <summary>
-    /// Dùng chung cổng MoMo; Purpose và SubscriptionPlanId giúp callback phân loại giao dịch.
+    /// Dùng chung cổng PayOS; Purpose và SubscriptionPlanId giúp callback phân loại giao dịch.
     /// </summary>
     [Authorize]
     [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateSubscriptionMoMoPayment(
-        int planId,
+    public async Task<IActionResult> CreateSubscriptionPayOSPayment(
+        [FromBody] SubscriptionPaymentRequest req,
         CancellationToken cancellationToken)
     {
+        var planId = req.PlanId;
         var userId = GetCurrentUserId();
         var plan = await _subscriptionService.GetActivePlanAsync(planId, cancellationToken);
         if (plan is null)
         {
-            TempData["Error"] = "Gói thuê bao không tồn tại hoặc đã ngừng bán.";
-            return RedirectToAction("Pricing", "Subscription");
+            return Json(new { success = false, message = "Gói thuê bao không tồn tại hoặc đã ngừng bán." });
         }
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -171,68 +177,80 @@ public class PaymentController : Controller
             _context.Orders.Add(order);
             await _context.SaveChangesAsync(cancellationToken);
 
-            // Không tạo OrderItem giả vì bảng hiện tại bắt buộc CourseId.
-            var merchantOrderId = $"SUB_{order.OrderId}_{DateTime.UtcNow:yyyyMMddHHmmss}";
             var payment = new Payment
             {
                 OrderId = order.OrderId,
-                Provider = "MoMo",
+                Provider = "PayOS",
                 Amount = plan.Price,
                 Currency = "VND",
                 Status = "Pending",
                 Purpose = PaymentPurposes.Subscription,
                 SubscriptionPlanId = plan.Id,
-                RawPayload = merchantOrderId
+                RawPayload = order.OrderId.ToString(),
+                ProviderRef = order.OrderId.ToString()
             };
             _context.Payments.Add(payment);
             await _context.SaveChangesAsync(cancellationToken);
 
-            var momo = await _momoService.CreatePaymentAsync(
+            var payosResult = await _payOSService.CreatePaymentLinkAsync(
                 plan.Price,
-                $"Đăng ký gói {plan.Name}",
-                merchantOrderId);
+                $"Dang ky goi {plan.Name}",
+                order.OrderId);
 
-            if (momo.resultCode != 0 || string.IsNullOrWhiteSpace(momo.payUrl))
+            if (payosResult == null || string.IsNullOrWhiteSpace(payosResult.CheckoutUrl))
             {
                 payment.Status = "Failed";
                 order.Status = "Failed";
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                TempData["Error"] = momo.message ?? "Không thể tạo giao dịch MoMo.";
-                return RedirectToAction("Pricing", "Subscription");
+                return Json(new { success = false, message = "Không thể tạo giao dịch PayOS." });
             }
 
-            payment.ProviderRef = momo.orderId;
-            await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return Redirect(momo.payUrl);
+            return Json(new { 
+                success = true, 
+                payUrl = payosResult.CheckoutUrl, 
+                orderId = order.OrderId.ToString(),
+                qrCode = payosResult.QrCode,
+                bin = payosResult.Bin,
+                accountNumber = payosResult.AccountNumber,
+                accountName = payosResult.AccountName,
+                amount = payosResult.Amount,
+                description = payosResult.Description
+            });
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync(cancellationToken);
             _logger.LogError(ex, "Error creating subscription payment for plan {PlanId}", planId);
-            TempData["Error"] = "Không thể khởi tạo thanh toán gói thuê bao.";
-            return RedirectToAction("Pricing", "Subscription");
+            return Json(new { success = false, message = "Không thể khởi tạo thanh toán gói thuê bao." });
         }
     }
 
-    [HttpPost("Payment/MoMoCallback")]
+    public class SubscriptionPaymentRequest
+    {
+        public int PlanId { get; set; }
+    }
+
+    [HttpPost("Payment/PayOSCallback")]
     [AllowAnonymous]
-    public async Task<IActionResult> MoMoCallback(
-        [FromBody] MoMoIpnRequest ipn,
+    public async Task<IActionResult> PayOSCallback(
+        [FromBody] Webhook callbackRequest,
         CancellationToken cancellationToken)
     {
         try
         {
-            if (!_momoService.ValidateSignature(ipn))
+            var verifiedData = await _payOSService.VerifyWebhookDataAsync(callbackRequest);
+            if (verifiedData == null)
+            {
                 return BadRequest("Invalid signature");
+            }
 
-            var payment = await FindPaymentAsync(ipn.orderId, cancellationToken);
+            var payment = await FindPaymentAsync(verifiedData.OrderCode.ToString(), cancellationToken);
             if (payment is null)
                 return NotFound("Payment not found");
 
-            // Không tin amount từ client/callback nếu lệch với giao dịch đã tạo.
-            if (decimal.ToInt64(decimal.Round(payment.Amount, 0)) != ipn.amount)
+            if (decimal.ToInt64(decimal.Round(payment.Amount, 0)) != verifiedData.Amount)
             {
                 _logger.LogWarning("Amount mismatch for payment {PaymentId}", payment.PaymentId);
                 return BadRequest("Amount mismatch");
@@ -241,65 +259,86 @@ public class PaymentController : Controller
             if (payment.Status != "Pending")
                 return Ok("Already processed");
 
-            if (ipn.resultCode == 0)
-                await CompletePaymentAsync(payment.PaymentId, ipn.transId.ToString(), cancellationToken);
+            if (callbackRequest.Success)
+            {
+                await CompletePaymentAsync(payment.PaymentId, verifiedData.Reference, cancellationToken);
+            }
             else
+            {
                 await FailPaymentAsync(payment.PaymentId, cancellationToken);
+            }
 
-            return Ok("IPN Processed");
+            return Ok(new { success = true });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing MoMo IPN");
+            _logger.LogError(ex, "Error processing PayOS callback");
             return StatusCode(500, "Internal error");
         }
     }
 
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> MoMoReturn(
-        string orderId,
-        int resultCode,
-        string message,
+    public async Task<IActionResult> PayOSReturn(
+        [FromQuery] int orderCode,
+        [FromQuery] string status,
+        [FromQuery] string id,
         CancellationToken cancellationToken)
     {
         try
         {
-            var payment = await FindPaymentAsync(orderId, cancellationToken);
+            var payment = await FindPaymentAsync(orderCode.ToString(), cancellationToken);
             if (payment is null)
                 return PaymentResult(false, "Không tìm thấy giao dịch.");
 
             if (payment.Status == "Paid")
                 return PaymentResult(true, "Thanh toán thành công!", payment);
             if (payment.Status == "Failed")
-                return PaymentResult(false, $"Thanh toán thất bại: {message}");
+                return PaymentResult(false, "Thanh toán thất bại.");
 
-            // Return URL chỉ hoàn tất sau khi query server-to-server với MoMo.
-            if (resultCode == 0)
+            if (status == "PAID")
             {
-                var queryResult = await _momoService.QueryTransactionAsync(orderId);
-                if (queryResult is not null &&
-                    queryResult.resultCode == 0 &&
-                    queryResult.amount == decimal.ToInt64(decimal.Round(payment.Amount, 0)))
+                var info = await _payOSService.GetPaymentLinkInformationAsync(orderCode);
+                if (info != null && info.Status == PaymentLinkStatus.Paid)
                 {
-                    await CompletePaymentAsync(
-                        payment.PaymentId,
-                        queryResult.transId.ToString(),
-                        cancellationToken);
+                    var reference = info.Transactions?.FirstOrDefault()?.Reference ?? id;
+                    await CompletePaymentAsync(payment.PaymentId, reference, cancellationToken);
                     return PaymentResult(true, "Thanh toán thành công!", payment);
                 }
             }
 
-            return PaymentResult(
-                resultCode == 0,
-                resultCode == 0
-                    ? "Thanh toán đang được xử lý. Vui lòng đợi."
-                    : $"Thanh toán thất bại: {message}");
+            return PaymentResult(false, "Thanh toán không thành công hoặc đang chờ xử lý.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing MoMo return");
+            _logger.LogError(ex, "Error processing PayOS return");
             return PaymentResult(false, "Có lỗi xảy ra khi xử lý thanh toán.");
+        }
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> PayOSCancel(
+        [FromQuery] int orderCode,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payment = await FindPaymentAsync(orderCode.ToString(), cancellationToken);
+            if (payment is null)
+                return PaymentResult(false, "Không tìm thấy giao dịch.");
+
+            if (payment.Status == "Pending")
+            {
+                await FailPaymentAsync(payment.PaymentId, cancellationToken);
+            }
+
+            return PaymentResult(false, "Bạn đã hủy giao dịch thanh toán.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing PayOS cancel");
+            return PaymentResult(false, "Có lỗi xảy ra khi hủy thanh toán.");
         }
     }
 
@@ -508,5 +547,36 @@ public class PaymentController : Controller
     public sealed class CoursePaymentRequest
     {
         public List<int> CourseIds { get; set; } = new();
+    [HttpPost("Payment/SimulateSuccess")]
+    public async Task<IActionResult> SimulateSuccess([FromBody] SimulateRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payment = await _context.Payments
+                .Include(x => x.Order)
+                .FirstOrDefaultAsync(x => x.OrderId == request.OrderId, cancellationToken);
+
+            if (payment is null)
+                return NotFound(new { success = false, message = "Không tìm thấy giao dịch." });
+
+            if (payment.Status == "Paid")
+                return Ok(new { success = true, message = "Giao dịch đã được thanh toán trước đó." });
+
+            // Giả lập hoàn thành thanh toán
+            var reference = "SIMULATED_" + Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
+            await CompletePaymentAsync(payment.PaymentId, reference, cancellationToken);
+
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error simulating payment success");
+            return StatusCode(500, new { success = false, message = "Lỗi hệ thống khi giả lập thanh toán." });
+        }
+    }
+
+    public class SimulateRequest
+    {
+        public int OrderId { get; set; }
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
+using Quiz_Web.Services.IServices;
 using System.Security.Claims;
 
 namespace Quiz_Web.Controllers.API
@@ -13,11 +14,16 @@ namespace Quiz_Web.Controllers.API
     {
         private readonly LearningPlatformContext _context;
         private readonly ILogger<LessonApiController> _logger;
+        private readonly ICourseAccessService _courseAccessService;
 
-        public LessonApiController(LearningPlatformContext context, ILogger<LessonApiController> logger)
+        public LessonApiController(
+            LearningPlatformContext context,
+            ILogger<LessonApiController> logger,
+            ICourseAccessService courseAccessService)
         {
             _context = context;
             _logger = logger;
+            _courseAccessService = courseAccessService;
         }
 
         // GET: api/LessonApi/{lessonId}
@@ -40,10 +46,12 @@ namespace Quiz_Web.Controllers.API
 
                 var course = lesson.Chapter.Course;
                 var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
-                var isOwner = course.OwnerId == userId;
-                var hasPurchased = course.CoursePurchases?.Any(p => p.BuyerId == userId && p.Status == "Paid") ?? false;
+                var hasAccess = await _courseAccessService.CanAccessCourseAsync(
+                    userId,
+                    course.CourseId,
+                    HttpContext.RequestAborted);
 
-                if (!isOwner && !hasPurchased)
+                if (!hasAccess)
                 {
                     return StatusCode(403, new { success = false, message = "Bạn cần mua khóa học chứa bài học này để xem nội dung" });
                 }

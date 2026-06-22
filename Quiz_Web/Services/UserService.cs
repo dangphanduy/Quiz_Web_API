@@ -22,9 +22,16 @@ namespace Quiz_Web.Services
 		{
 			try
 			{
-				var user = _context.Users.
-					Include(u => u.Role).
-					FirstOrDefault(u => u.Username == username.ToLower().Trim() && u.PasswordHash == password);
+				var normalizedUsername = username.ToLower().Trim();
+				var now = DateTime.UtcNow;
+				var user = _context.Users
+					.Include(u => u.Role)
+					.Where(u => u.Username == normalizedUsername && u.PasswordHash == password)
+					.OrderByDescending(u => u.UserSubscriptions.Any(subscription =>
+						subscription.Status == SubscriptionStatuses.Active &&
+						subscription.EndDate >= now))
+					.ThenBy(u => u.UserId)
+					.FirstOrDefault();
 				return user;
 			}
 			catch (Exception ex)

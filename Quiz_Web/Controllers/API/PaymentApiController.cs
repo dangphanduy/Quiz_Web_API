@@ -5,6 +5,7 @@ using Quiz_Web.Models.EF;
 using Quiz_Web.Models.Entities;
 using Quiz_Web.Services.IServices;
 using System.Security.Claims;
+using PayOS.Models.V2.PaymentRequests;
 
 namespace Quiz_Web.Controllers.API
 {
@@ -13,22 +14,22 @@ namespace Quiz_Web.Controllers.API
     [ApiController]
     public class PaymentApiController : ControllerBase
     {
-        private readonly IMoMoPaymentService _momoService;
+        private readonly IPayOSService _payOSService;
         private readonly ICartService _cartService;
-        private readonly IPurchaseService _purchaseService;
+        private readonly ICourseAccessService _courseAccessService;
         private readonly LearningPlatformContext _context;
         private readonly ILogger<PaymentApiController> _logger;
 
         public PaymentApiController(
-            IMoMoPaymentService momoService,
+            IPayOSService payOSService,
             ICartService cartService,
-            IPurchaseService purchaseService,
+            ICourseAccessService courseAccessService,
             LearningPlatformContext context,
             ILogger<PaymentApiController> logger)
         {
-            _momoService = momoService;
+            _payOSService = payOSService;
             _cartService = cartService;
-            _purchaseService = purchaseService;
+            _courseAccessService = courseAccessService;
             _context = context;
             _logger = logger;
         }
@@ -86,11 +87,11 @@ namespace Quiz_Web.Controllers.API
                 await _context.SaveChangesAsync();
 
                 // 4) Tạo Payment
-                var orderIdStr = $"ORDER_{order.OrderId}_{DateTime.Now:yyyyMMddHHmmss}";
+                var orderIdStr = order.OrderId.ToString();
                 var payment = new Payment
                 {
                     OrderId = order.OrderId,
-                    Provider = "MoMo",
+                    Provider = "PayOS",
                     Amount = total,
                     Currency = "VND",
                     Status = "Pending",
@@ -100,23 +101,23 @@ namespace Quiz_Web.Controllers.API
                 _context.Payments.Add(payment);
                 await _context.SaveChangesAsync();
 
-                // 5) Gọi MoMo
-                var momo = await _momoService.CreatePaymentAsync(total, "Thanh toán giỏ hàng", orderIdStr);
+                // 5) Gọi PayOS
+                var payosResult = await _payOSService.CreatePaymentLinkAsync(total, "Thanh toan gio hang", order.OrderId);
 
-                if (momo.resultCode == 0)
+                if (payosResult != null && !string.IsNullOrWhiteSpace(payosResult.CheckoutUrl))
                 {
-                    payment.ProviderRef = momo.orderId;
+                    payment.ProviderRef = orderIdStr;
                     await _context.SaveChangesAsync();
 
                     return Ok(new
                     {
                         success = true,
-                        payUrl = momo.payUrl,
+                        payUrl = payosResult.CheckoutUrl,
                         orderId = orderIdStr
                     });
                 }
 
-                return BadRequest(new { success = false, message = momo.message });
+                return BadRequest(new { success = false, message = "Không tạo được liên kết thanh toán PayOS" });
             }
             catch (Exception ex)
             {
@@ -160,7 +161,7 @@ namespace Quiz_Web.Controllers.API
             try
             {
                 var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
-                var hasAccess = await _purchaseService.HasUserPurchasedCourseAsync(userId, courseId);
+                var hasAccess = await _courseAccessService.CheckCourseAccessAsync(userId, courseId, HttpContext.RequestAborted);
                 return Ok(new { success = true, hasAccess });
             }
             catch (Exception ex)

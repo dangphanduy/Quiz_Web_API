@@ -38,7 +38,7 @@ namespace Quiz_Web.Controllers
 		// GET: /courses
 		[Route("/courses")]
 		[HttpGet]
-		public IActionResult Index(
+		public async Task<IActionResult> Index(
 			string? search, 
 			int page = 1, 
 			int pageSize = 12,
@@ -71,6 +71,9 @@ namespace Quiz_Web.Controllers
 			ViewBag.TotalPages = totalPages;
 			ViewBag.PageSize = pageSize;
 			ViewBag.TotalCount = totalCount;
+			ViewBag.CourseAccessIds = await GetAccessibleCourseIdsAsync(
+				pagedCourses.Select(course => course.CourseId),
+				HttpContext.RequestAborted);
 
 			return View(pagedCourses);
 		}
@@ -78,7 +81,7 @@ namespace Quiz_Web.Controllers
 		// GET: /courses/search?q=keyword
 		[Route("/courses/search")]
 		[HttpGet]
-		public IActionResult Search(
+		public async Task<IActionResult> Search(
 			string q, 
 			int page = 1, 
 			int pageSize = 12,
@@ -114,6 +117,9 @@ namespace Quiz_Web.Controllers
 			ViewBag.CurrentPage = page;
 			ViewBag.PageSize = pageSize;
 			ViewBag.CategorySlug = null;
+			ViewBag.CourseAccessIds = await GetAccessibleCourseIdsAsync(
+				pagedCourses.Select(course => course.CourseId),
+				HttpContext.RequestAborted);
 
 			return View("Index", pagedCourses);
 		}
@@ -285,7 +291,7 @@ namespace Quiz_Web.Controllers
 		// GET: /courses/category/{category}
 		[Route("/courses/category/{category}")]
 		[HttpGet]
-		public IActionResult Category(
+		public async Task<IActionResult> Category(
 			string category,
 			int page = 1,
 			int pageSize = 3,
@@ -328,6 +334,9 @@ namespace Quiz_Web.Controllers
 			ViewBag.TotalPages = totalPages;
 			ViewBag.PageSize = pageSize;
 			ViewBag.TotalCount = totalCount;
+			ViewBag.CourseAccessIds = await GetAccessibleCourseIdsAsync(
+				pagedCourses.Select(course => course.CourseId),
+				HttpContext.RequestAborted);
 
 			return View("Index", pagedCourses);
 		}
@@ -335,7 +344,7 @@ namespace Quiz_Web.Controllers
 		// GET: /courses/{slug}
 		[Route("/courses/{slug}")]
 		[HttpGet]
-		public IActionResult Detail(string slug)
+		public async Task<IActionResult> Detail(string slug)
 		{
 			_logger.LogInformation($"Course Detail - Slug: {slug}");
 			if (string.IsNullOrWhiteSpace(slug))
@@ -349,11 +358,17 @@ namespace Quiz_Web.Controllers
 			}
 
 			var isOwner = false;
+			var hasAccess = false;
 			var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
 			if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var userId))
+			{
 				isOwner = course.OwnerId == userId;
+				hasAccess = isOwner ||
+					await _courseAccessService.CheckCourseAccessAsync(userId, course.CourseId, HttpContext.RequestAborted);
+			}
 
 			ViewBag.IsOwner = isOwner;
+			ViewBag.HasCourseAccess = hasAccess;
 			return View(course);
 		}
 
@@ -816,6 +831,24 @@ namespace Quiz_Web.Controllers
 			ViewBag.IsOwner = isOwner;
 
 			return View();
+		}
+
+		private async Task<HashSet<int>> GetAccessibleCourseIdsAsync(
+			IEnumerable<int> courseIds,
+			CancellationToken cancellationToken)
+		{
+			var result = new HashSet<int>();
+			var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+			if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+				return result;
+
+			foreach (var courseId in courseIds.Distinct())
+			{
+				if (await _courseAccessService.CanAccessCourseAsync(userId, courseId, cancellationToken))
+					result.Add(courseId);
+			}
+
+			return result;
 		}
 
 		// GET: /courses/revenue - th?ng kê doanh thu t? các khóa h?c c?a ngu?i dùng
