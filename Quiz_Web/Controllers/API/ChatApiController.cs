@@ -15,11 +15,16 @@ public class ChatApiController : ControllerBase
 {
     private readonly IChatService _chatService;
     private readonly IStorageService _storageService;
+    private readonly ILogger<ChatApiController> _logger;
 
-    public ChatApiController(IChatService chatService, IStorageService storageService)
+    public ChatApiController(
+        IChatService chatService,
+        IStorageService storageService,
+        ILogger<ChatApiController> logger)
     {
         _chatService = chatService;
         _storageService = storageService;
+        _logger = logger;
     }
 
     [HttpGet("conversations")]
@@ -30,6 +35,7 @@ public class ChatApiController : ControllerBase
             return Unauthorized(new { success = false, message = "Chưa đăng nhập." });
 
         var conversations = await _chatService.GetUserConversationsAsync(userId);
+        _logger.LogInformation("User {UserId} loaded chat conversations", userId);
         
         var result = conversations.Select(c => new
         {
@@ -68,6 +74,12 @@ public class ChatApiController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "Không có quyền xem lịch sử cuộc trò chuyện này." });
 
         var messages = await _chatService.GetConversationMessagesAsync(conversationId, skip, take);
+        _logger.LogInformation(
+            "User {UserId} loaded chat history for conversation {ConversationId} with Skip {Skip} and Take {Take}",
+            userId,
+            conversationId,
+            skip,
+            take);
         
         var result = messages.Select(m => new
         {
@@ -99,6 +111,12 @@ public class ChatApiController : ControllerBase
         if (conversation == null)
             return BadRequest(new { success = false, message = "Không thể khởi tạo cuộc trò chuyện." });
 
+        _logger.LogInformation(
+            "User {UserId} opened conversation {ConversationId} for course {CourseId}",
+            userId,
+            conversation.ConversationId,
+            courseId);
+
         return Ok(new
         {
             success = true,
@@ -124,6 +142,7 @@ public class ChatApiController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "Không có quyền truy cập." });
 
         await _chatService.MarkMessagesAsReadAsync(conversationId, userId);
+        _logger.LogInformation("User {UserId} marked conversation {ConversationId} as read", userId, conversationId);
         return Ok(new { success = true });
     }
 
@@ -144,6 +163,11 @@ public class ChatApiController : ControllerBase
             }
 
             var fileUrl = await _storageService.UploadFileAsync(file, "uploads/chat");
+            _logger.LogInformation(
+                "Uploaded chat file {FileName} with size {FileSize} bytes",
+                file.FileName,
+                file.Length);
+
             return Ok(new
             {
                 success = true,
@@ -153,6 +177,7 @@ public class ChatApiController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error uploading chat file {FileName}", file.FileName);
             return StatusCode(500, new { success = false, message = "Lỗi khi tải tệp lên: " + ex.Message });
         }
     }

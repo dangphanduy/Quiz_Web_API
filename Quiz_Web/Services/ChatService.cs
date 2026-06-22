@@ -13,33 +13,56 @@ public class ChatService : IChatService
 {
     private readonly LearningPlatformContext _context;
     private readonly ICourseAccessService _courseAccessService;
+    private readonly ILogger<ChatService> _logger;
 
-    public ChatService(LearningPlatformContext context, ICourseAccessService courseAccessService)
+    public ChatService(
+        LearningPlatformContext context,
+        ICourseAccessService courseAccessService,
+        ILogger<ChatService> logger)
     {
         _context = context;
         _courseAccessService = courseAccessService;
+        _logger = logger;
     }
 
     public async Task<bool> CanUserChatInCourseAsync(int userId, int courseId)
     {
         var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.CourseId == courseId);
-        if (course == null) return false;
+        if (course == null)
+        {
+            _logger.LogWarning("User {UserId} attempted to chat in missing course {CourseId}", userId, courseId);
+            return false;
+        }
 
         // Giảng viên sở hữu khóa học có quyền chat
         if (course.OwnerId == userId) return true;
 
         // Học viên phải có quyền truy cập khóa học (đã mua hoặc đăng ký)
-        return await _courseAccessService.CheckCourseAccessAsync(userId, courseId);
+        var hasAccess = await _courseAccessService.CheckCourseAccessAsync(userId, courseId);
+        if (!hasAccess)
+        {
+            _logger.LogWarning("User {UserId} does not have chat access for course {CourseId}", userId, courseId);
+        }
+
+        return hasAccess;
     }
 
     public async Task<ChatConversation?> GetOrCreateConversationAsync(int studentId, int courseId)
     {
         var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.CourseId == courseId);
-        if (course == null) return null;
+        if (course == null)
+        {
+            _logger.LogWarning("Cannot create chat conversation because course {CourseId} was not found", courseId);
+            return null;
+        }
 
         // Kiểm tra quyền chat của học viên
         bool canChat = await _courseAccessService.CheckCourseAccessAsync(studentId, courseId);
-        if (!canChat) return null;
+        if (!canChat)
+        {
+            _logger.LogWarning("Student {StudentId} cannot create chat conversation for course {CourseId}", studentId, courseId);
+            return null;
+        }
 
         int instructorId = course.OwnerId;
 
@@ -62,6 +85,12 @@ public class ChatService : IChatService
 
             _context.ChatConversations.Add(conversation);
             await _context.SaveChangesAsync();
+            _logger.LogInformation(
+                "Created chat conversation {ConversationId} for student {StudentId}, instructor {InstructorId}, course {CourseId}",
+                conversation.ConversationId,
+                studentId,
+                instructorId,
+                courseId);
 
             // Load lại đầy đủ thông tin Student, Instructor, Course
             conversation = await _context.ChatConversations
@@ -70,6 +99,13 @@ public class ChatService : IChatService
                 .Include(c => c.Course)
                 .FirstOrDefaultAsync(c => c.ConversationId == conversation.ConversationId);
         }
+
+        _logger.LogInformation(
+            "Resolved chat conversation {ConversationId} for student {StudentId}, instructor {InstructorId}, course {CourseId}",
+            conversation?.ConversationId,
+            studentId,
+            instructorId,
+            courseId);
 
         return conversation;
     }
@@ -120,6 +156,14 @@ public class ChatService : IChatService
 
         _context.ChatMessages.Add(message);
         await _context.SaveChangesAsync();
+        _logger.LogInformation(
+            "Saved chat message {MessageId} in conversation {ConversationId} from sender {SenderId}; message type {MessageType}; has file {HasFile}",
+            message.MessageId,
+            conversationId,
+            senderId,
+            messageType,
+            !string.IsNullOrWhiteSpace(fileName));
+
         return message;
     }
 
@@ -136,6 +180,11 @@ public class ChatService : IChatService
                 msg.IsRead = true;
             }
             await _context.SaveChangesAsync();
+            _logger.LogInformation(
+                "Marked {UnreadCount} chat messages as read in conversation {ConversationId} for user {UserId}",
+                unreadMessages.Count,
+                conversationId,
+                userId);
         }
     }
 

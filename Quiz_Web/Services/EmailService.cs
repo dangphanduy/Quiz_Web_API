@@ -34,15 +34,15 @@ namespace Quiz_Web.Services
 					Body = $@"
 						<html>
 						<body>
-							<div>
-								<p>Bạn nhận được email này vì đã yêu cầu đặt lại mật khẩu cho tài khoản của mình.</p>
-								<p>Vui lòng click vào link sau để đặt lại mật khẩu:</p>
-								<p><a href='{resetLink}'>{resetLink}</a></p>
-								<hr />
-								<p>Nếu không có yêu cầu này, vui lòng bỏ qua email.</p>
-							</div>
+							<h2>Yêu cầu đặt lại mật khẩu</h2>
+							<p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình.</p>
+							<p>Vui lòng nhấp vào liên kết bên dưới để đặt lại mật khẩu:</p>
+							<p><a href='{resetLink}'>Đặt lại mật khẩu</a></p>
+							<p>Liên kết này sẽ hết hạn sau 1 giờ.</p>
+							<p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
 						</body>
-						</html>",
+						</html>
+					",
 					IsBodyHtml = true
 				};
 
@@ -79,9 +79,15 @@ namespace Quiz_Web.Services
 					Subject = "Mã xác thực đặt lại mật khẩu",
 					Body = $@"
 						<html>
-						<body>
-							<div>
-								<p>Mã xác thực đặt lại mật khẩu của bạn là: <strong>{code}</strong></p>
+						<body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+							<div style='max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+								<h2 style='color: #0d6efd; text-align: center;'>Yêu cầu đặt lại mật khẩu</h2>
+								<p>Xin chào,</p>
+								<p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình. Vui lòng sử dụng mã xác thực dưới đây để hoàn tất quá trình:</p>
+								<div style='text-align: center; margin: 30px 0;'>
+									<span style='font-size: 24px; font-weight: bold; letter-spacing: 5px; padding: 10px 20px; background-color: #f8f9fa; border: 1px dashed #0d6efd; border-radius: 4px; color: #0d6efd;'>{code}</span>
+								</div>
+								<p>Mã xác thực này sẽ hết hạn sau <strong>10 phút</strong>.</p>
 								<p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này và bảo mật tài khoản của mình.</p>
 								<hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;' />
 								<p style='font-size: 12px; color: #777; text-align: center;'>Đây là email tự động, vui lòng không phản hồi email này.</p>

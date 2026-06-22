@@ -1,8 +1,6 @@
-﻿using System.Diagnostics;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Quiz_Web.Models;
 using Quiz_Web.Models.EF;
 using Quiz_Web.Models.ViewModels;
 using Quiz_Web.Services;
@@ -114,6 +112,19 @@ namespace Quiz_Web.Controllers
             return View();
         }
 
+        // TEST ONLY: Comment this action when exception handling no longer needs manual testing.
+        // [AllowAnonymous]
+        // [HttpGet("/demo-error")]
+        // public IActionResult DemoError()
+        // {
+        //     _logger.LogWarning(
+        //         "Demo exception endpoint was triggered. TraceId: {TraceId}",
+        //         HttpContext.TraceIdentifier);
+
+        //     // GlobalExceptionHandler logs this exception at Error level with its stack trace.
+        //     throw new InvalidOperationException("Demo exception for web exception handling");
+        // }
+
         [Authorize]
         [Route("/home-checkout")]
         public IActionResult Checkout()
@@ -129,12 +140,6 @@ namespace Quiz_Web.Controllers
                 throw new UnauthorizedAccessException("User not authenticated");
             }
             return userId;
-        }
-
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
         // Debug action to test Onboarding view

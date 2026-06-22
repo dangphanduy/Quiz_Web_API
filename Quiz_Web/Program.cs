@@ -5,6 +5,7 @@ using Quiz_Web.Services;
 using Quiz_Web.Services.IServices;
 using Ganss.Xss;
 using Serilog;
+using Serilog.Events;
 using Serilog.Formatting.Elasticsearch;
 using Quiz_Web.Extensions;
 using Quiz_Web.Models.PayOSPayment;
@@ -12,6 +13,15 @@ using Quiz_Web.Models.PayOSPayment;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
+var logRoot = Path.Combine(builder.Environment.ContentRootPath, "logs");
+var logFolders = new[] { "requests", "payment", "chat", "learning", "user", "system", "errors" };
+const string logTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}";
+
+foreach (var folder in logFolders)
+{
+    Directory.CreateDirectory(Path.Combine(logRoot, folder));
+}
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
@@ -20,10 +30,65 @@ Log.Logger = new LoggerConfiguration()
         formatter: new ElasticsearchJsonFormatter(),
         bootstrapServers: builder.Configuration["Serilog:WriteTo:1:Args:bootstrapServers"] ?? "localhost:9094",
         topic: "quiz-logs")
+    .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly(IsHttpRequestLog)
+            .WriteTo.File(
+                Path.Combine(logRoot, "requests", "requests-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                shared: true,
+                outputTemplate: logTemplate))
+        .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly(IsPaymentLog)
+            .WriteTo.File(
+                Path.Combine(logRoot, "payment", "payment-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                shared: true,
+                outputTemplate: logTemplate))
+        .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly(IsChatLog)
+            .WriteTo.File(
+                Path.Combine(logRoot, "chat", "chat-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                shared: true,
+                outputTemplate: logTemplate))
+        .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly(IsLearningLog)
+            .WriteTo.File(
+                Path.Combine(logRoot, "learning", "learning-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                shared: true,
+                outputTemplate: logTemplate))
+        .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly(IsUserLog)
+            .WriteTo.File(
+                Path.Combine(logRoot, "user", "user-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                shared: true,
+                outputTemplate: logTemplate))
+        .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly(IsSystemLog)
+            .WriteTo.File(
+                Path.Combine(logRoot, "system", "system-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                shared: true,
+                outputTemplate: logTemplate))
+        .WriteTo.File(
+            Path.Combine(logRoot, "errors", "errors-.txt"),
+            restrictedToMinimumLevel: LogEventLevel.Error,
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 30,
+            buffered: false,
+            shared: true,
+            outputTemplate: logTemplate)
     .CreateLogger();
 
 builder.Host.UseSerilog();
-
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -162,9 +227,8 @@ builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
+app.UseExceptionHandler("/Error");
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -176,9 +240,10 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
+
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 app.UseRouting();
@@ -218,5 +283,114 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+static bool IsHttpRequestLog(LogEvent logEvent)
+{
+    return SourceContext(logEvent) == "Serilog.AspNetCore.RequestLoggingMiddleware";
+}
+
+static bool IsPaymentLog(LogEvent logEvent)
+{
+    var source = SourceContext(logEvent);
+
+    return ContainsAny(
+        source,
+        "PaymentController",
+        "PaymentApiController",
+        "CheckoutController",
+        "CartApiController",
+        "PayOSService",
+        "PurchaseService",
+        "SubscriptionService",
+        "CartService",
+        "CourseAccessService");
+}
+
+static bool IsChatLog(LogEvent logEvent)
+{
+    var source = SourceContext(logEvent);
+
+    return ContainsAny(
+        source,
+        "ChatController",
+        "ChatApiController",
+        "ChatHub",
+        "ChatService");
+}
+
+static bool IsLearningLog(LogEvent logEvent)
+{
+    var source = SourceContext(logEvent);
+
+    return ContainsAny(
+        source,
+        "CourseController",
+        "CourseApiController",
+        "CourseBuilderApiController",
+        "CourseProgressController",
+        "CourseService",
+        "CourseRecommendationService",
+        "LessonController",
+        "LessonApiController",
+        "LessonService",
+        "CreateLessonController",
+        "CreateLessonService",
+        "CreateTestController",
+        "CreateTestService",
+        "CreateTextController",
+        "CreateTextService",
+        "TestController",
+        "TestApiController",
+        "TestService",
+        "FlashcardController",
+        "FlashcardApiController",
+        "FlashcardService",
+        "ReviewController",
+        "ReviewApiController",
+        "ReviewService",
+        "CertificateController",
+        "CertificateService",
+        "LibraryController",
+        "LibraryApiController",
+        "LibraryService");
+}
+
+static bool IsUserLog(LogEvent logEvent)
+{
+    var source = SourceContext(logEvent);
+
+    return ContainsAny(
+        source,
+        "AccountController",
+        "AccountApiController",
+        "AuthController",
+        "OnboardingController",
+        "OnboardingApiController",
+        "UserService",
+        "EmailService",
+        "TokenService");
+}
+
+static bool IsSystemLog(LogEvent logEvent)
+{
+    return !IsHttpRequestLog(logEvent)
+        && !IsPaymentLog(logEvent)
+        && !IsChatLog(logEvent)
+        && !IsLearningLog(logEvent)
+        && !IsUserLog(logEvent);
+}
+
+static string SourceContext(LogEvent logEvent)
+{
+    return logEvent.Properties.TryGetValue("SourceContext", out var value)
+        && value is ScalarValue { Value: string sourceContext }
+            ? sourceContext
+            : string.Empty;
+}
+
+static bool ContainsAny(string value, params string[] keywords)
+{
+    return keywords.Any(keyword => value.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+}
 
 public partial class Program { }
