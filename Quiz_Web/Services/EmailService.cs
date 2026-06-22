@@ -1,19 +1,11 @@
 using Quiz_Web.Services.IServices;
 using System.Net;
 using System.Net.Mail;
-
-namespace Quiz_Web.Services
-{
-	public class EmailService : IEmailService
-	{
-		private readonly IConfiguration _configuration;
-
-		public EmailService(IConfiguration configuration)
-		{
-			_configuration = configuration;
+			}
 		}
 
-		public async Task<bool> SendPasswordResetEmail(string toEmail, string resetLink)
+		public async Task<bool> SendForgotPasswordCodeEmail(string toEmail, string code)
+		public async Task<bool> SendCertificateEmailAsync(string toEmail, string userName, string courseName, byte[] certificateImageBytes, string fileName)
 		{
 			try
 			{
@@ -26,16 +18,13 @@ namespace Quiz_Web.Services
 				var mailMessage = new MailMessage
 				{
 					From = new MailAddress(fromEmail, fromName),
-					Subject = "Đặt lại mật khẩu",
+					Subject = "Mã xác thực đặt lại mật khẩu",
 					Body = $@"
 						<html>
-						<body>
-							<h2>Yêu cầu đặt lại mật khẩu</h2>
-							<p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình.</p>
-							<p>Vui lòng nhấp vào liên kết bên dưới để đặt lại mật khẩu:</p>
-							<p><a href='{resetLink}'>Đặt lại mật khẩu</a></p>
-							<p>Liên kết này sẽ hết hạn sau 1 giờ.</p>
-							<p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+								<p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này và bảo mật tài khoản của mình.</p>
+								<hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;' />
+								<p style='font-size: 12px; color: #777; text-align: center;'>Đây là email tự động, vui lòng không phản hồi email này.</p>
+							</div>
 						</body>
 						</html>
 					",
@@ -51,10 +40,10 @@ namespace Quiz_Web.Services
 					await smtpClient.SendMailAsync(mailMessage);
 				}
 				return true;
-
-			}catch(Exception ex)
+			}
+			catch (Exception ex)
 			{
-				Console.WriteLine($"Lỗi gửi mailL: {ex.Message}");
+				Console.WriteLine($"Lỗi gửi mã OTP qua mail: {ex.Message}");
 				return false;
 			}
 		}
@@ -110,6 +99,7 @@ namespace Quiz_Web.Services
 			}
 			catch (Exception ex)
 			{
+				Console.WriteLine($"Lỗi gửi mã OTP qua mail: {ex.Message}");
 				Console.WriteLine($"Lỗi gửi mail chứng chỉ: {ex.Message}");
 				return false;
 			}

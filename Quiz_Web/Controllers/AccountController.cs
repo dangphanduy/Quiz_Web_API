@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -162,22 +162,46 @@ namespace Quiz_Web.Controllers
 				if (user == null)
 					return Json(new { status = WebConstants.ERROR, message = "Email không tồn tại trong hệ thống" });
 
-				if (_userService.GeneratePasswordResetToken(email, out string token))
+				if (_userService.GenerateForgotPasswordCode(email, out string code))
 				{
-					string? resetLink = Url.Action("ResetPassword", "Account", new { token }, Request.Scheme);
-
-					if (await _emailService.SendPasswordResetEmail(email, resetLink))
+					if (await _emailService.SendForgotPasswordCodeEmail(email, code))
 					{
-						return Json(new { status = WebConstants.SUCCESS, message = "Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn" });
+						return Json(new { status = WebConstants.SUCCESS, message = "Mã xác thực đã được gửi về email của bạn. Vui lòng kiểm tra hộp thư.", email = email });
 					}
 					else
 					{
-						return Json(new { status = WebConstants.ERROR, message = "Không thể gửi email. Vui lòng thử lại sau." });
+						return Json(new { status = WebConstants.ERROR, message = "Không thể gửi email chứa mã xác thực. Vui lòng thử lại sau." });
 					}
 				}
 				else
 				{
-					return Json(new { status = WebConstants.ERROR, message = "Có lỗi xảy ra. Vui lòng thử lại." });
+					return Json(new { status = WebConstants.ERROR, message = "Có lỗi xảy ra khi tạo mã xác thực. Vui lòng thử lại." });
+				}
+			}
+			catch (Exception ex)
+			{
+				return Json(new { status = WebConstants.ERROR, message = "Lỗi hệ thống", error = ex.ToString() });
+			}
+		}
+
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public IActionResult VerifyResetCode(string email, string code)
+		{
+			try
+			{
+				if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(code))
+				{
+					return Json(new { status = WebConstants.ERROR, message = "Thông tin không đầy đủ." });
+				}
+
+				if (_userService.VerifyResetCode(email, code, out string secureToken))
+				{
+					return Json(new { status = WebConstants.SUCCESS, token = secureToken });
+				}
+				else
+				{
+					return Json(new { status = WebConstants.ERROR, message = "Mã xác thực không chính xác hoặc đã hết hạn." });
 				}
 			}
 			catch (Exception ex)
