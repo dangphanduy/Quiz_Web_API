@@ -1,0 +1,128 @@
+@model List<Quiz_Web.Models.Entities.FlashcardSet>
+@{
+    ViewData["Title"] = "Quản lý Flashcard";
+    Layout = "_LayoutAdmin";
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Quản lý bộ Flashcard</h2>
+    <a href="@Url.Action("CreateFlashcardSet")" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Tạo bộ Flashcard
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table id="flashcardSetsTable" class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Ảnh bìa</th>
+                    <th>Tiêu đề</th>
+                    <th>Mô tả</th>
+                    <th>Người tạo</th>
+                    <th>Hiển thị</th>
+                    <th>Số thẻ</th>
+                    <th>Ngôn ngữ</th>
+                    <th>Ngày tạo</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var set in Model)
+                {
+                    <tr>
+                        <td>@set.SetId</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(set.CoverUrl))
+                            {
+                                <img src="@set.CoverUrl" alt="@set.Title" class="rounded" style="width: 50px; height: 50px; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                    <i class="fas fa-layer-group"></i>
+                                </div>
+                            }
+                        </td>
+                        <td><strong>@set.Title</strong></td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(set.Description))
+                            {
+                                @(set.Description.Length > 60 ? set.Description.Substring(0, 60) + "..." : set.Description)
+                            }
+                            else
+                            {
+                                <span class="text-muted">Chưa có mô tả</span>
+                            }
+                        </td>
+                        <td>@set.Owner?.FullName</td>
+                        <td>
+                            <span class="badge @(set.Visibility == "Public" ? "bg-success" : "bg-warning")">
+                                @(set.Visibility == "Public" ? "Công khai" : "Riêng tư")
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">@set.Flashcards.Count</span>
+                        </td>
+                        <td>@set.Language</td>
+                        <td>@set.CreatedAt.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="@Url.Action("FlashcardSetDetails", new { id = set.SetId })" class="btn btn-sm btn-outline-info">Chi tiết</a>
+                                <a href="@Url.Action("EditFlashcardSet", new { id = set.SetId })" class="btn btn-sm btn-outline-primary">Sửa</a>
+                                <form method="post" asp-action="DeleteFlashcardSet" class="d-inline">
+                                    <input type="hidden" name="id" value="@set.SetId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn xóa bộ Flashcard này?')">Xóa</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$(document).ready(function() {
+    $('#flashcardSetsTable').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[0, 'desc']],
+        columnDefs: [
+            { orderable: false, targets: [1, 9] }
+        ],
+        language: {
+            search: "Tìm kiếm bộ Flashcard:",
+            lengthMenu: "Hiển thị _MENU_ bộ mỗi trang",
+            info: "Hiển thị _START_ đến _END_ của _TOTAL_ bộ",
+            paginate: {
+                first: "Đầu tiên",
+                last: "Cuối cùng",
+                next: "Tiếp theo",
+                previous: "Trước đó"
+            }
+        }
+    });
+});
+</script>
+}
+
+
