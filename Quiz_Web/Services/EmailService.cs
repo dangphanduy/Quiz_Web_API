@@ -1,6 +1,10 @@
 using Quiz_Web.Services.IServices;
+using System;
+using System.IO;
 using System.Net;
 using System.Net.Mail;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
 namespace Quiz_Web.Services
 {
@@ -51,11 +55,10 @@ namespace Quiz_Web.Services
 					await smtpClient.SendMailAsync(mailMessage);
 				}
 				return true;
-
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"Lỗi gửi mailL: {ex.Message}");
+				Console.WriteLine($"Lỗi gửi mail reset link: {ex.Message}");
 				return false;
 			}
 		}
@@ -90,8 +93,7 @@ namespace Quiz_Web.Services
 								<p style='font-size: 12px; color: #777; text-align: center;'>Đây là email tự động, vui lòng không phản hồi email này.</p>
 							</div>
 						</body>
-						</html>
-					",
+						</html>",
 					IsBodyHtml = true
 				};
 
@@ -139,8 +141,7 @@ namespace Quiz_Web.Services
 								<p style='font-size: 12px; color: #777; text-align: center;'>Email này được gửi tự động từ hệ thống ymedu.</p>
 							</div>
 						</body>
-						</html>
-					",
+						</html>",
 					IsBodyHtml = true
 				};
 
