@@ -1,10 +1,33 @@
 // Payment handling JavaScript
 class PaymentHandler {
     constructor() {
+        this.currencyFormatter = new Intl.NumberFormat('vi-VN');
+        this.initializeSelectionState();
         this.initializeEventListeners();
     }
 
+    initializeSelectionState() {
+        this.updateCheckoutSummary();
+    }
+
     initializeEventListeners() {
+        $(document).on('change', '.course-select-input', () => {
+            this.updateCheckoutSummary();
+        });
+
+        $(document).on('change', '#selectAllCourses', (e) => {
+            $('.course-select-input').prop('checked', e.currentTarget.checked);
+            this.updateCheckoutSummary();
+        });
+
+        $(document).on('click', '[data-course-card]', (e) => {
+            if ($(e.target).is('input, button, a, i') || $(e.target).closest('button, a').length) {
+                return;
+            }
+
+            const checkbox = $(e.currentTarget).find('.course-select-input');
+            checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
+        });
         // Xử lý nút thanh toán khóa học
         $(document).on('click', '.btn-payos-payment', (e) => {
             e.preventDefault();
@@ -18,12 +41,54 @@ class PaymentHandler {
             this.processSubscriptionPayment(planId);
         });
 
-        // Kiểm tra quyền truy cập khóa học
         $(document).on('click', '.check-course-access', (e) => {
             e.preventDefault();
             const courseId = $(e.target).data('course-id');
             this.checkCourseAccess(courseId);
         });
+    }
+
+    getSelectedCourseIds() {
+        return $('.course-select-input:checked')
+            .map((_, element) => Number(element.value))
+            .get()
+            .filter(courseId => Number.isInteger(courseId) && courseId > 0);
+    }
+
+    getSelectionSnapshot() {
+        const selectedInputs = $('.course-select-input:checked');
+        const selectedCount = selectedInputs.length;
+        const totalCount = $('.course-select-input').length;
+        let total = 0;
+
+        selectedInputs.each((_, element) => {
+            total += Number(element.dataset.price || 0);
+        });
+
+        return { selectedCount, totalCount, total };
+    }
+
+    updateCheckoutSummary() {
+        const snapshot = this.getSelectionSnapshot();
+        const formattedTotal = `${this.currencyFormatter.format(snapshot.total)} VNĐ`;
+        const hasSelection = snapshot.selectedCount > 0;
+
+        $('[data-course-card]').each((_, card) => {
+            const isSelected = $(card).find('.course-select-input').prop('checked');
+            $(card).toggleClass('selected', isSelected);
+        });
+
+        $('#selectedCount, #summarySelectedCount').text(snapshot.selectedCount);
+        $('#summarySubtotal, #summaryTotal').text(formattedTotal);
+        $('#selectionWarning').toggleClass('d-none', hasSelection);
+        $('.btn-momo-payment').prop('disabled', !hasSelection);
+
+        const selectAll = $('#selectAllCourses');
+        if (selectAll.length) {
+            const selectAllElement = selectAll.get(0);
+            selectAll.prop('checked', snapshot.totalCount > 0 && snapshot.selectedCount === snapshot.totalCount);
+            selectAllElement.indeterminate = snapshot.selectedCount > 0 && snapshot.selectedCount < snapshot.totalCount;
+        }
     }
 
     async processPayOSPayment() {
@@ -35,7 +100,8 @@ class PaymentHandler {
                 headers: {
                     'Content-Type': 'application/json',
                     'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-                }
+                },
+                body: JSON.stringify({ courseIds: selectedCourseIds })
             });
 
             const result = await response.json();
@@ -184,9 +250,9 @@ class PaymentHandler {
 
     showLoading(message = 'Đang xử lý...') {
         const loadingHtml = `
-            <div id="payment-loading" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+            <div id="payment-loading" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
                  style="background: rgba(0,0,0,0.5); z-index: 9999;">
-                <div class="bg-white p-4 rounded text-center">
+                <div class="bg-white p-4 rounded text-center shadow">
                     <div class="spinner-border text-primary mb-3" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
@@ -215,9 +281,9 @@ class PaymentHandler {
 
     showToast(message, type = 'info') {
         const bgClass = {
-            'success': 'bg-success',
-            'error': 'bg-danger',
-            'info': 'bg-info'
+            success: 'bg-success',
+            error: 'bg-danger',
+            info: 'bg-info'
         }[type] || 'bg-info';
 
         const toastHtml = `
@@ -241,7 +307,6 @@ class PaymentHandler {
     }
 }
 
-// Khởi tạo PaymentHandler khi document ready
 $(document).ready(() => {
     new PaymentHandler();
 });

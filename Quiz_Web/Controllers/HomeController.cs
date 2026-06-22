@@ -116,35 +116,9 @@ namespace Quiz_Web.Controllers
 
         [Authorize]
         [Route("/home-checkout")]
-        public async Task<IActionResult> Checkout()
+        public IActionResult Checkout()
         {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var cartItems = await _cartService.GetCartItemsAsync(userId);
-                
-                var viewModel = new CheckoutViewModel
-                {
-                    CartItems = cartItems.Select(ci => new CartItemViewModel
-                    {
-                        CourseId = ci.CourseId,
-                        Title = ci.Course.Title,
-                        CoverUrl = ci.Course.CoverUrl,
-                        Price = ci.Course.Price,
-                        InstructorName = ci.Course.Owner.FullName,
-                        AddedAt = ci.AddedAt
-                    }).ToList(),
-                    Total = cartItems.Sum(ci => ci.Course.Price)
-                };
-
-                return View(viewModel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading checkout page");
-                TempData["Error"] = "Có lỗi xảy ra khi tải trang thanh toán";
-                return RedirectToAction("Index");
-            }
+            return RedirectToAction("Index", "Checkout");
         }
 
         private int GetCurrentUserId()
