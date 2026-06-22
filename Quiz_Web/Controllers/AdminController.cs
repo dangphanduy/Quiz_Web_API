@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Quiz_Web.Models.EF;
@@ -6,6 +6,8 @@ using Quiz_Web.Models.Entities;
 using Quiz_Web.Helper;
 using Quiz_Web.Utils;
 using Quiz_Web.Services.IServices;
+using Quiz_Web.Models.ViewModels;
+using System.Text.Json;
 
 namespace Quiz_Web.Controllers
 {
@@ -14,11 +16,16 @@ namespace Quiz_Web.Controllers
 	{
 		private readonly LearningPlatformContext _context;
 		private readonly IDashboardService _dashboardService;
+		private readonly IFlashcardService _flashcardService;
 
-		public AdminController(LearningPlatformContext context, IDashboardService dashboardService)
+		public AdminController(
+			LearningPlatformContext context, 
+			IDashboardService dashboardService,
+			IFlashcardService flashcardService)
 		{
 			_context = context;
 			_dashboardService = dashboardService;
+			_flashcardService = flashcardService;
 		}
 
 		[Route("/admin")]
@@ -447,6 +454,263 @@ namespace Quiz_Web.Controllers
 				TempData["Success"] = "Course deleted successfully";
 			}
 			return RedirectToAction("Courses");
+		}
+
+		// FLASHCARD SET MANAGEMENT
+		public async Task<IActionResult> FlashcardSets()
+		{
+			var flashcardSets = await _context.FlashcardSets
+				.Include(fs => fs.Owner)
+				.Include(fs => fs.Flashcards)
+				.Where(fs => !fs.IsDeleted)
+				.ToListAsync();
+			return View(flashcardSets);
+		}
+
+		public async Task<IActionResult> FlashcardSetDetails(int id)
+		{
+			var flashcardSet = await _context.FlashcardSets
+				.Include(fs => fs.Owner)
+				.Include(fs => fs.Flashcards)
+				.FirstOrDefaultAsync(fs => fs.SetId == id && !fs.IsDeleted);
+			if (flashcardSet == null) return NotFound();
+
+			flashcardSet.Flashcards = flashcardSet.Flashcards.OrderBy(f => f.OrderIndex).ToList();
+			return View(flashcardSet);
+		}
+
+		[HttpGet]
+		public IActionResult CreateFlashcardSet()
+		{
+			return View();
+		}
+
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> CreateFlashcardSet(CreateFlashcardSetViewModel model, IFormFile? coverFile)
+		{
+			if (string.IsNullOrWhiteSpace(model.Title) || model.Title.Length > 200)
+			{
+				TempData["Error"] = "Tiêu đề bộ Flashcard là bắt buộc và không được vượt quá 200 ký tự.";
+				return View(model);
+			}
+
+			var userId = GetCurrentUserId();
+
+			if (coverFile is { Length: > 0 })
+			{
+				var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+				var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
+				if (!allowed.Contains(ext))
+				{
+					ModelState.AddModelError(nameof(model.CoverUrl), "Định dạng ảnh không hợp lệ(jpg, jpeg, png, gif, webp).");
+					return View(model);
+				}
+
+				var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+				var folder = $"uploads/flashcards/{DateTimeHelper.Now:yyyy/MM}";
+				var physical = Path.Combine(env.WebRootPath, folder);
+				Directory.CreateDirectory(physical);
+
+				var fileName = $"{Guid.NewGuid():N}{ext}";
+				var fullPath = Path.Combine(physical, fileName);
+
+				await using (var stream = System.IO.File.Create(fullPath))
+				{
+					await coverFile.CopyToAsync(stream);
+				}
+
+				model.CoverUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+			}
+
+			var flashcardSet = _flashcardService.CreateFlashcardSet(model, userId);
+
+			if (flashcardSet == null)
+			{
+				TempData["Error"] = "Có lỗi xảy ra khi tạo bộ flashcard";
+				return View(model);
+			}
+
+			if (!string.IsNullOrWhiteSpace(model.FlashcardsJson))
+			{
+				try
+				{
+					var flashcardsData = JsonSerializer.Deserialize<List<FlashcardDataViewModel>>(
+						model.FlashcardsJson,
+						new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+					);
+
+					if (flashcardsData != null && flashcardsData.Any())
+					{
+						foreach (var flashcardData in flashcardsData)
+						{
+							var flashcardModel = new CreateFlashcardViewModel
+							{
+								SetId = flashcardSet.SetId,
+								FrontText = flashcardData.FrontText,
+								BackText = flashcardData.BackText,
+								Hint = flashcardData.Hint,
+								OrderIndex = flashcardData.OrderIndex
+							};
+
+							_flashcardService.CreateFlashcard(flashcardModel, userId);
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					// Log the error
+				}
+			}
+
+			TempData["Success"] = "Tạo bộ Flashcard thành công.";
+			return RedirectToAction("FlashcardSets");
+		}
+
+		[HttpGet]
+		public async Task<IActionResult> EditFlashcardSet(int id)
+		{
+			var set = await _context.FlashcardSets.FindAsync(id);
+			if (set == null || set.IsDeleted) return NotFound();
+			return View(set);
+		}
+
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> EditFlashcardSet(FlashcardSet model, IFormFile? coverFile)
+		{
+			if (string.IsNullOrWhiteSpace(model.Title) || model.Title.Length > 200)
+			{
+				TempData["Error"] = "Tiêu đề bộ Flashcard là bắt buộc và không được vượt quá 200 ký tự.";
+				return View(model);
+			}
+
+			var set = await _context.FlashcardSets.FindAsync(model.SetId);
+			if (set == null || set.IsDeleted) return NotFound();
+
+			set.Title = model.Title.Trim();
+			set.Description = model.Description?.Trim();
+			set.Visibility = string.IsNullOrWhiteSpace(model.Visibility) ? "Private" : model.Visibility;
+			set.Language = string.IsNullOrWhiteSpace(model.Language) ? "Tiếng Việt" : model.Language;
+			set.TagsText = model.TagsText?.Trim();
+			set.UpdatedAt = DateTimeHelper.Now;
+
+			if (coverFile is { Length: > 0 })
+			{
+				var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+				var ext = Path.GetExtension(coverFile.FileName).ToLowerInvariant();
+				if (allowed.Contains(ext))
+				{
+					var folder = $"uploads/flashcards/{DateTimeHelper.Now:yyyy/MM}";
+					var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+					var physical = Path.Combine(env.WebRootPath, folder);
+					Directory.CreateDirectory(physical);
+
+					var fileName = $"{Guid.NewGuid():N}{ext}";
+					var fullPath = Path.Combine(physical, fileName);
+
+					await using (var stream = System.IO.File.Create(fullPath))
+					{
+						await coverFile.CopyToAsync(stream);
+					}
+
+					set.CoverUrl = "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+				}
+			}
+
+			await _context.SaveChangesAsync();
+			TempData["Success"] = "Cập nhật bộ Flashcard thành công.";
+			return RedirectToAction("FlashcardSets");
+		}
+
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> DeleteFlashcardSet(int id)
+		{
+			var set = await _context.FlashcardSets.FindAsync(id);
+			if (set != null && !set.IsDeleted)
+			{
+				set.IsDeleted = true;
+				set.UpdatedAt = DateTimeHelper.Now;
+				await _context.SaveChangesAsync();
+				TempData["Success"] = "Đã xóa bộ Flashcard.";
+			}
+			return RedirectToAction("FlashcardSets");
+		}
+
+		// CARD MANAGEMENT WITHIN SET
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> AddFlashcardToSet(int setId, string frontText, string backText, string? hint)
+		{
+			if (string.IsNullOrWhiteSpace(frontText) || string.IsNullOrWhiteSpace(backText))
+			{
+				TempData["Error"] = "Mặt trước và mặt sau không được để trống.";
+				return RedirectToAction("FlashcardSetDetails", new { id = setId });
+			}
+
+			var set = await _context.FlashcardSets.Include(fs => fs.Flashcards).FirstOrDefaultAsync(fs => fs.SetId == setId && !fs.IsDeleted);
+			if (set == null) return NotFound();
+
+			var maxOrderIndex = set.Flashcards.Any() ? set.Flashcards.Max(f => f.OrderIndex) : 0;
+
+			var card = new Flashcard
+			{
+				SetId = setId,
+				FrontText = frontText.Trim(),
+				BackText = backText.Trim(),
+				Hint = hint?.Trim(),
+				OrderIndex = maxOrderIndex + 1,
+				CreatedAt = DateTimeHelper.Now
+			};
+
+			_context.Flashcards.Add(card);
+			await _context.SaveChangesAsync();
+			TempData["Success"] = "Đã thêm thẻ mới.";
+			return RedirectToAction("FlashcardSetDetails", new { id = setId });
+		}
+
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> EditFlashcardInSet(int cardId, string frontText, string backText, string? hint)
+		{
+			if (string.IsNullOrWhiteSpace(frontText) || string.IsNullOrWhiteSpace(backText))
+			{
+				TempData["Error"] = "Mặt trước và mặt sau không được để trống.";
+				return RedirectToAction("FlashcardSets");
+			}
+
+			var card = await _context.Flashcards.FindAsync(cardId);
+			if (card == null) return NotFound();
+
+			card.FrontText = frontText.Trim();
+			card.BackText = backText.Trim();
+			card.Hint = hint?.Trim();
+			card.UpdatedAt = DateTimeHelper.Now;
+
+			await _context.SaveChangesAsync();
+			TempData["Success"] = "Cập nhật thẻ thành công.";
+			return RedirectToAction("FlashcardSetDetails", new { id = card.SetId });
+		}
+
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> DeleteFlashcardFromSet(int id)
+		{
+			var card = await _context.Flashcards.FindAsync(id);
+			int setId = 0;
+			if (card != null)
+			{
+				setId = card.SetId;
+				_context.Flashcards.Remove(card);
+				await _context.SaveChangesAsync();
+				TempData["Success"] = "Đã xóa thẻ.";
+			}
+			if (setId > 0)
+			{
+				return RedirectToAction("FlashcardSetDetails", new { id = setId });
+			}
+			return RedirectToAction("FlashcardSets");
 		}
 
 		// TEST MANAGEMENT
