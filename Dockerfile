@@ -16,5 +16,15 @@ RUN dotnet publish "Quiz_Web.csproj" -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 8080
+
+
+# Install dependencies for SkiaSharp and fontconfig
+RUN apt-get update && apt-get install -y \
+    libfontconfig1 \
+    libfreetype6 \
+    libharfbuzz0b \
+    fonts-dejavu \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "Quiz_Web.dll"]
