@@ -111,6 +111,8 @@ builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddSingleton<IStorageService, GoogleCloudStorageService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<ICourseAccessService, CourseAccessService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddSignalR();
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Register background service for course recommendations
@@ -163,6 +165,7 @@ app.MapStaticAssets();
 
 // ? Map API Controllers FIRST (before MVC routes)
 app.MapControllers();
+app.MapHub<Quiz_Web.Hubs.ChatHub>("/chatHub");
 
 // Add explicit route for Onboarding
 app.MapControllerRoute(
